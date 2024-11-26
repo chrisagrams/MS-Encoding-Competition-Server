@@ -15,7 +15,7 @@ client = docker.from_env()
 minio_client = Minio(
     "minio:9000",
     access_key="admin",
-    secret_key="password", 
+    secret_key="password",
     secure=False,
 )
 
@@ -26,6 +26,7 @@ if not minio_client.bucket_exists(BUCKET_NAME):
 
 Base.metadata.create_all(bind=engine)
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -33,9 +34,11 @@ def get_db():
     finally:
         db.close()
 
+
 @app.get("/hello-world")
 def hello_world():
     return client.containers.run("hello-world")
+
 
 @app.post("/upload")
 async def upload(
@@ -47,12 +50,16 @@ async def upload(
 ):
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="File must be zip archive.")
-    
+
     file_key = str(uuid.uuid4())
 
     zip_data = await file.read()
     minio_client.put_object(
-        BUCKET_NAME, file_key, BytesIO(zip_data), length=len(zip_data)
+        BUCKET_NAME,
+        file_key,
+        BytesIO(zip_data),
+        length=len(zip_data),
+        content_type="application/zip",
     )
 
     new_submission = Submission(
@@ -67,6 +74,3 @@ async def upload(
     db.refresh(new_submission)
 
     return {"file_key": file_key, "message": "File uploaded successfully"}
-
-
-
