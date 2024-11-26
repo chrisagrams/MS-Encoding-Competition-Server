@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 
+import { BuildPopup, BuildPopupProps } from "./BuildPopup"
+
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
   name: z
@@ -50,6 +52,8 @@ export const SubmissionForm = () => {
   })
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [buildPopupOpen, setBuildPopopOpen] = useState<boolean>(false)
+  const [currentFileKey, setCurrentFileKey] = useState<string>("")
 
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -62,6 +66,7 @@ export const SubmissionForm = () => {
     accept: { "application/zip": [".zip"] },
     maxSize: 25 * 1024 * 1024, // 25 MB
   })
+
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const formData = new FormData()
@@ -83,6 +88,8 @@ export const SubmissionForm = () => {
 
         const result = await response.json()
         console.log(result)
+        setCurrentFileKey(result['file_key'])
+        setBuildPopopOpen(true);       
     }
     catch (error) {
         console.error("Error uploading file: ", error)
@@ -90,88 +97,91 @@ export const SubmissionForm = () => {
   }
 
   return (
-    <Card>
-        <CardHeader>
-            <CardTitle>Submission</CardTitle>
-            <CardDescription>Submit your encoding method.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Enter your email" {...field} />
-                    </FormControl>
-                    <FormDescription>Your email address.</FormDescription>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Enter your name" {...field} />
-                    </FormControl>
-                    <FormDescription>Your name will be visible to others.</FormDescription>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="submissionName"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Submission Name</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Enter submission name" {...field} />
-                    </FormControl>
-                    <FormDescription>A short name for your submission.</FormDescription>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="file"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>File Upload</FormLabel>
-                    <FormControl>
-                        <div
-                        {...getRootProps()}
-                        className={`border-2 border-dashed rounded-md p-4 py-8 cursor-pointer text-center ${
-                            isDragActive ? "border-blue-500" : "border-gray-300"
-                        }`}
-                        >
-                        <input {...getInputProps()} />
-                        {isDragActive ? (
-                            <p>Drop file here...</p>
-                        ) : selectedFile ? (
-                            <p>{selectedFile.name}</p>
-                        ) : (
-                            <p>Drag and drop ZIP file here, or click to select one</p>
-                        )}
-                        </div>
-                    </FormControl>
-                    <FormDescription>Upload your file. Must be a ZIP and less than 25MB.</FormDescription>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <Button type="submit">Submit</Button>
-            </form>
-            </Form>
-        </CardContent>
-    </Card>
+    <>
+      <Card>
+          <CardHeader>
+              <CardTitle>Submission</CardTitle>
+              <CardDescription>Submit your encoding method.</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                  <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                          <Input placeholder="Enter your email" {...field} />
+                      </FormControl>
+                      <FormDescription>Your email address.</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                          <Input placeholder="Enter your name" {...field} />
+                      </FormControl>
+                      <FormDescription>Your name will be visible to others.</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="submissionName"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>Submission Name</FormLabel>
+                      <FormControl>
+                          <Input placeholder="Enter submission name" {...field} />
+                      </FormControl>
+                      <FormDescription>A short name for your submission.</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <FormField
+                  control={form.control}
+                  name="file"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormLabel>File Upload</FormLabel>
+                      <FormControl>
+                          <div
+                          {...getRootProps()}
+                          className={`border-2 border-dashed rounded-md p-4 py-8 cursor-pointer text-center ${
+                              isDragActive ? "border-blue-500" : "border-gray-300"
+                          }`}
+                          >
+                          <input {...getInputProps()} />
+                          {isDragActive ? (
+                              <p>Drop file here...</p>
+                          ) : selectedFile ? (
+                              <p>{selectedFile.name}</p>
+                          ) : (
+                              <p>Drag and drop ZIP file here, or click to select one</p>
+                          )}
+                          </div>
+                      </FormControl>
+                      <FormDescription>Upload your file. Must be a ZIP and less than 25MB.</FormDescription>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                  />
+                  <Button type="submit">Submit</Button>
+              </form>
+              </Form>
+          </CardContent>
+      </Card>
+      <BuildPopup file_key={currentFileKey} open={buildPopupOpen} setOpen={setBuildPopopOpen}></BuildPopup>
+    </>
   )
 }

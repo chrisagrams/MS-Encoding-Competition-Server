@@ -1,7 +1,8 @@
-import docker.errors
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from minio import Minio
 from io import BytesIO
+import asyncio
 import docker
 import zipfile
 import tarfile
@@ -9,10 +10,14 @@ import uuid
 from sqlalchemy.orm import Session
 from schema import Base, SessionLocal, engine, Submission
 from models import SubmissionModel
+from collections import defaultdict
+from typing import Dict, Set
 
 app = FastAPI()
 
 client = docker.from_env()
+
+docker_client = docker.APIClient()
 
 minio_client = Minio(
     "minio:9000",
@@ -86,7 +91,6 @@ async def build_container(file_key: str):
     response.release_conn()
 
     with zipfile.ZipFile(zip_data) as z:
-        print(z.infolist())
         if not any(info.filename.startswith("transform/") for info in z.infolist()):
             # Check if transform directory is present
             raise HTTPException(
@@ -106,16 +110,35 @@ async def build_container(file_key: str):
                     tar.addfile(tar_info, BytesIO(file_bytes))
         tar_data.seek(0)
 
-    # Try to build Docker image
-    try:
-        image, logs = client.images.build(
-            fileobj=tar_data,
-            custom_context=True,
-            tag=f"transform-{file_key}:latest",
-        )
-        for log in logs:
-            print(log)  # TODO: Set up a websocket to emmit this to client
-    except docker.errors.BuildError as e:
-        raise HTTPException(status_code=500, detail=f"Docker build failed: {str(e)}")
+    async def log_stream():
+        yield "Starting build...\n"
+        await asyncio.sleep(0) # Let the server send data to the client
+        try:
+            build_output = docker_client.build(
+                fileobj=tar_data,
+                custom_context=True,
+                tag=f"transform-{file_key}:latest",
+                decode=True
+            )
 
-    return {"message": "Docker image built successfully", "image_id": image.id}
+            for chunk in build_output:
+                if "stream" in chunk:
+                    log_message = chunk["stream"].strip()
+                    yield f"{log_message}\n"
+                    await asyncio.sleep(0)
+                elif "error" in chunk:
+                    error_message = chunk["error"].strip()
+                    yield f"ERROR: {error_message}\n"
+                    await asyncio.sleep(0)
+                    raise HTTPException(status_code=500, detail=error_message)
+
+            success_message = f"Docker image built successfully for {file_key}."
+            yield f"{success_message}\n"
+            await asyncio.sleep(0)
+
+        except docker.errors.BuildError as e:
+            error_message = f"Docker build failed: {str(e)}"
+            yield f"ERROR: {error_message}\n"
+            raise HTTPException(status_code=500, detail=error_message)
+
+    return StreamingResponse(log_stream(), media_type="text/plain")
