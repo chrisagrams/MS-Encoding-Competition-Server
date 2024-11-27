@@ -6,6 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ColorRing } from "react-loader-spinner";
+import { IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 
 export interface BuildPopupProps {
   file_key: string;
@@ -19,18 +21,19 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
   setOpen,
 }) => {
   const [logs, setLogs] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setLogs([]); // Clear logs when dialog is closed
+      setStatus("loading");
       return;
     }
 
     if (file_key) {
-      setLoading(true);
       const fetchLogs = async () => {
+        setStatus("loading");
         try {
           const response = await fetch(`/api/build-container/${file_key}`, {
             method: "POST",
@@ -50,15 +53,27 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
 
             if (value) {
               const chunk = decoder.decode(value, { stream: true });
-              setLogs((prevLogs) => [...prevLogs, ...chunk.split("\n")]);
+              const lines = chunk.split("\n");
+
+              setLogs((prevLogs) => [...prevLogs, ...lines]);
+
+              // Check for "ERROR:" in the chunk
+              if (lines.some((line) => line.includes("ERROR:"))) {
+                setStatus("error");
+                return;
+              }
             }
           }
 
-          setLoading(false);
+          if (response.ok) {
+            setStatus("success");
+          } else {
+            setStatus("error"); 
+          }
         } catch (error) {
           console.error("Error fetching logs:", error);
           setLogs((prevLogs) => [...prevLogs, "Error fetching logs."]);
-          setLoading(false);
+          setStatus("error");
         }
       };
 
@@ -79,7 +94,30 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
         <DialogHeader>
           <DialogTitle>Building container...</DialogTitle>
           <DialogDescription>
-            <p>Please wait as your container is being built.</p>
+            <div className="flex flex-row justify-between">
+              <p className="my-auto">
+                {status === "loading" && "Please wait as your container is being built."}
+                {status === "success" && "Container built successfully!"}
+                {status === "error" && "An error occurred when building container."}
+              </p>
+              {status === "loading" && (
+                <ColorRing
+                  visible={true}
+                  height="40"
+                  width="40"
+                  ariaLabel="color-ring-loading"
+                  wrapperStyle={{}}
+                  wrapperClass="color-ring-wrapper"
+                  colors={["#4A90E2", "#4A90E2", "#4A90E2", "#4A90E2", "#4A90E2"]}
+                />
+              )}
+              {status === "success" && (
+                <IoCheckmarkCircle className="text-green-400 text-3xl my-auto" />
+              )}
+              {status === "error" && (
+                <IoCloseCircle className="text-red-400 text-3xl my-auto" />
+              )}
+            </div>
             <div
               style={{
                 marginTop: "1rem",
@@ -99,7 +137,7 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
                   {/* Invisible div to scroll to */}
                   <div ref={logsEndRef} />
                 </>
-              ) : loading ? (
+              ) : status === "loading" ? (
                 <p>Waiting for logs...</p>
               ) : (
                 <p>No logs available.</p>
