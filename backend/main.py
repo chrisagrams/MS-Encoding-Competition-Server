@@ -12,12 +12,20 @@ from schema import Base, SessionLocal, engine, Submission
 from models import SubmissionModel
 from collections import defaultdict
 from typing import Dict, Set
+from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+from process import download_file
+import os
+import logging
 
-app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 client = docker.from_env()
 
 docker_client = docker.APIClient()
+
+load_dotenv()
 
 minio_client = Minio(
     "minio:9000",
@@ -26,12 +34,37 @@ minio_client = Minio(
     secure=False,
 )
 
-
 BUCKET_NAME = "submission-uploads"
-if not minio_client.bucket_exists(BUCKET_NAME):
-    minio_client.make_bucket(BUCKET_NAME)
 
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up the application...")
+    try:
+        # Minio bucket initialization
+        if not minio_client.bucket_exists(BUCKET_NAME):
+            minio_client.make_bucket(BUCKET_NAME)
+            logger.info(f"Created bucket: {BUCKET_NAME}")
+        else:
+            logger.info(f"Bucket {BUCKET_NAME} already exists.")
+
+        # Database initialization
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully.")
+
+        # Download test file (if not exists)
+        mzml_file = os.environ.get("TEST_MZML")
+        mzml_file_url = os.environ.get("TEST_MZML_URL")
+        logger.info(f"mzml_file: {mzml_file}")
+        download_file(minio_client, url=mzml_file_url, object_name=mzml_file)
+
+    except Exception as e:
+        logger.error(f"An error occurred during startup: {e}")
+        raise
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 def get_db():
@@ -112,13 +145,13 @@ async def build_container(file_key: str):
 
     async def log_stream():
         yield "Starting build...\n"
-        await asyncio.sleep(0) # Let the server send data to the client
+        await asyncio.sleep(0)  # Let the server send data to the client
         try:
             build_output = docker_client.build(
                 fileobj=tar_data,
                 custom_context=True,
                 tag=f"transform-{file_key}:latest",
-                decode=True
+                decode=True,
             )
 
             for chunk in build_output:

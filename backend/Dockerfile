@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt --no-cache-dir
 
 COPY *.py /app/
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--workers", "2"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--lifespan", "on", "--log-level", "debug"]
