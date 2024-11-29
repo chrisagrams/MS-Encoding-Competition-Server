@@ -59,80 +59,36 @@ def deconstruct_file(client: Minio, object_name: str):
     response = client.get_object(INTER_RUN_BUCKET, object_name)
     file_data = response.read()
 
-    # Start the container with a command that keeps it running
-    container = docker_client.create_container(
-        image="chrisagrams/mzml-construct:latest",
-        command="sleep infinity",  # Keep the container running
-    )
+    with tempfile.TemporaryDirectory(dir="/tmp") as input_dir, tempfile.TemporaryDirectory(dir="/tmp") as output_dir:
+        input_file_path = os.path.join(input_dir, object_name)
+        with open(input_file_path, "wb") as input_file:
+            input_file.write(file_data)
 
-    container_id = container.get('Id')
+        container = docker_client.create_container(
+            image="chrisagrams/mzml-construct:latest",
+            command="python -u deconstruct.py /input/test.mzML /output/ -f npy",
+            host_config=docker_client.create_host_config(
+                binds = {
+                    input_dir: {'bind': '/input', 'mode': 'ro'},
+                    output_dir: {'bind': '/output', 'mode': 'rw'}
+                }
+            )
+        )
 
-    try:
-        # Start the container
-        docker_client.start(container=container_id)
+        docker_client.start(container=container.get('Id'))
+        docker_client.wait(container=container.get('Id'))
 
-        # Create /input and /output directories inside the container
-        exec_create_cmd = docker_client.exec_create(
-            container=container_id, cmd='mkdir -p /input /output')
-        docker_client.exec_start(exec_create_cmd)
-
-        # Copy the input file into the container's /input directory
-        tar_stream = BytesIO()
-        with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-            tarinfo = tarfile.TarInfo(name=object_name)
-            tarinfo.size = len(file_data)
-            tarinfo.mtime = time.time()
-            tar.addfile(tarinfo, BytesIO(file_data))
-        tar_stream.seek(0)
-        success = docker_client.put_archive(
-            container=container_id, path='/input', data=tar_stream)
-        if not success:
-            raise RuntimeError("Failed to copy input file into container")
-
-        # Execute the processing command inside the container
-        exec_cmd = f"python -u deconstruct.py /input/{object_name} /output/ -f npy"
-        exec_create = docker_client.exec_create(
-            container=container_id, cmd=exec_cmd)
-        exec_output = docker_client.exec_start(exec_create, stream=True)
-        for line in exec_output:
-            print(line.decode('utf-8').rstrip())
-
-        # Check exit code of the exec command
-        exec_inspect = docker_client.exec_inspect(exec_create)
-        if exec_inspect['ExitCode'] != 0:
-            logs = docker_client.logs(
-                container=container_id, stderr=True).decode("utf-8")
-            raise RuntimeError(f"Container failed with logs:\n{logs}")
-
-        # Retrieve the output files from /output directory in the container
-        bits, stat = docker_client.get_archive(
-            container=container_id, path='/output')
-        file_like_object = BytesIO()
-        for chunk in bits:
-            file_like_object.write(chunk)
-        file_like_object.seek(0)
-
-        # Extract files from the tar archive and upload directly to MinIO
-        with tarfile.open(fileobj=file_like_object, mode='r') as tar:
-            for member in tar.getmembers():
-                if member.isfile():
-                    extracted_file = tar.extractfile(member)
-                    file_data = extracted_file.read()
-                    file_obj = BytesIO(file_data)
-                    file_obj.seek(0)
-                    minio_object_name = member.name.lstrip('/')
-                    client.put_object(
-                        INTER_RUN_BUCKET,
-                        minio_object_name,
-                        data=file_obj,
-                        length=len(file_data)
-                    )
-    except Exception as e:
-        raise RuntimeError(f"Error running deconstruct container: {e}")
-    finally:
-        # Clean up the container
-        docker_client.remove_container(container=container_id, force=True)
-
+        # Upload results to MinIO
+        for file_name in os.listdir(output_dir):
+            output_file_path = os.path.join(output_dir, file_name)
+            with open(output_file_path, "rb") as output_file:
+                file_stat = os.stat(output_file_path)
+                client.put_object(
+                    INTER_RUN_BUCKET,
+                    f"deconstruct/{file_name}",
+                    data=output_file,
+                    length=file_stat.st_size
+                )
 
 
 def prepare_benchmarks(client: Minio, url: str, object_name: str):
