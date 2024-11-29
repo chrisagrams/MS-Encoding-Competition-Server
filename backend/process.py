@@ -8,7 +8,6 @@ import time
 from io import BytesIO
 from minio import Minio
 from minio.error import S3Error
-from tqdm import tqdm
 
 docker_client = docker.APIClient()
 
@@ -35,36 +34,25 @@ def download_file(client: Minio, url: str, object_name: str):
             if e.code != "NoSuchKey":
                 raise
 
-        with requests.get(url, stream=True) as response:
+        with requests.get(url) as response:
             response.raise_for_status()  # Raise exception for HTTP errors
-            total_size = int(response.headers.get("content-length", 0))
+            with tempfile.NamedTemporaryFile(delete=True, dir="/tmp") as tmp_file:
+                tmp_file.write(response.content)
+                tmp_file.seek(0)
+                client.put_object(
+                    bucket_name=INTER_RUN_BUCKET,
+                    object_name=object_name,
+                    data=tmp_file,
+                    length=len(response.content),
+                    content_type=response.headers.get("content-type"),
+                )
 
-            buffer = BytesIO()
-
-            with tqdm(
-                total=total_size, unit="B", unit_scale=True, desc=object_name
-            ) as pbar:
-                for chunk in response.iter_content(
-                    chunk_size=1024 * 1024
-                ):  # 1MB chunks
-                    buffer.write(chunk)
-                    pbar.update(len(chunk))
-
-            buffer.seek(0)
-
-            client.put_object(
-                bucket_name=INTER_RUN_BUCKET,
-                object_name=object_name,
-                data=buffer,
-                length=total_size,
-                content_type=response.headers.get("content-type"),
-            )
-
-        print(f"{object_name} successfully downloaded.")
+        logger.info(f"{object_name} successfully downloaded.")
     except S3Error as e:
-        print(f"MinIO error: {e}")
+        logger.error(f"MinIO error: {e}")
     except requests.RequestException as e:
-        print(f"HTTP request error: {e}")
+        logger.error(f"HTTP request error: {e}")
+
 
 
 def deconstruct_file(client: Minio, object_name: str):
