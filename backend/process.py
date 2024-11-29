@@ -26,7 +26,7 @@ def download_file(client: Minio, url: str, bucket:str, object_name: str):
 
         # Check if the file already exists
         try:
-            client.stat_object(bucket, object_name)
+            client.stat_object(bucket, f"download/{object_name}")
             logger.info(
                 f"{object_name} already exists in the bucket. Skipping download."
             )
@@ -58,6 +58,14 @@ def download_file(client: Minio, url: str, bucket:str, object_name: str):
 
 
 def deconstruct_file(client: Minio, bucket: str, object_name: str):
+    # Check if deconstruct folder exists and if .xml and .npy files are present
+    objects = list(client.list_objects(bucket, prefix="deconstruct/"))
+    xml_exists = any(obj.object_name.endswith('.xml') for obj in objects)
+    npy_exists = any(obj.object_name.endswith('.npy') for obj in objects)
+    if xml_exists and npy_exists:
+        logger.info("Deconstruct already exists. Skipping deconstruct.")
+        return
+    
     # Get mzML from bucket
     response = client.get_object(bucket, f"download/{object_name}")
     file_data = response.read()
