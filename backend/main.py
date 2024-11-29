@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import Dict, Set
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from process import download_file
+from process import prepare_benchmarks
 import os
 import logging
 
@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
         mzml_file = os.environ.get("TEST_MZML")
         mzml_file_url = os.environ.get("TEST_MZML_URL")
         logger.info(f"mzml_file: {mzml_file}")
-        download_file(minio_client, url=mzml_file_url, object_name=mzml_file)
+        prepare_benchmarks(minio_client, url=mzml_file_url, object_name=mzml_file)
 
     except Exception as e:
         logger.error(f"An error occurred during startup: {e}")
