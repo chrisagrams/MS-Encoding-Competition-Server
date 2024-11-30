@@ -99,8 +99,11 @@ def deconstruct_file(client: Minio, bucket: str, object_name: str):
             )
         )
 
-        docker_client.start(container=container.get('Id'))
-        docker_client.wait(container=container.get('Id'))
+        container_id = container.get('Id')
+
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+        docker_client.remove_container(container=container_id)
 
         # Upload results to MinIO
         put_directory_to_minio(client, bucket, "deconstruct", output_dir)
@@ -139,8 +142,11 @@ def search_file(client: Minio, bucket: str, object_name: str):
             )
         )
 
-        docker_client.start(container=container.get("Id"))
-        docker_client.wait(container=container.get("Id"))
+        container_id = container.get('Id')
+
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+        docker_client.remove_container(container=container_id)
 
         # Unzip the output ZIP file
         for file_name in os.listdir(output_dir):
