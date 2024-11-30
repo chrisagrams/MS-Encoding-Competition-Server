@@ -119,20 +119,22 @@ async def upload(
 @app.get("/results", response_model=List[ResultModel])
 def get_all_results(db: Session = Depends(get_db)):
     results = db.query(TestResult).join(Submission).all()
-    
+
     result_list = []
     for result in results:
         submission = result.submission
-        result_list.append(ResultModel(
-            submission_id=submission.file_key,
-            name=submission.name,
-            submission_name=submission.submission_name,
-            runtime=result.runtime,
-            ratio=result.ratio,
-            accuracy=result.accuracy,
-            status=result.status
-        ))
-    
+        result_list.append(
+            ResultModel(
+                submission_id=submission.file_key,
+                name=submission.name,
+                submission_name=submission.submission_name,
+                runtime=result.runtime,
+                ratio=result.ratio,
+                accuracy=result.accuracy,
+                status=result.status,
+            )
+        )
+
     return result_list
 
 

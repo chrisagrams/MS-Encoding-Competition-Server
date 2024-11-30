@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 INTER_RUN_BUCKET = "inter-run-bucket"
 
 
-def download_file(client: Minio, url: str, bucket:str, object_name: str):
+def download_file(client: Minio, url: str, bucket: str, object_name: str):
     try:
         # Ensure the bucket exists
         if not client.bucket_exists(bucket):
@@ -32,7 +32,7 @@ def download_file(client: Minio, url: str, bucket:str, object_name: str):
         except S3Error as e:
             if e.code != "NoSuchKey":
                 raise
-        
+
         # Download URL and put into bucket
         with requests.get(url) as response:
             response.raise_for_status()  # Raise exception for HTTP errors
@@ -63,7 +63,7 @@ def put_directory_to_minio(client: Minio, bucket: str, prefix: str, output_dir: 
                 bucket,
                 f"{prefix}/{file_name}",
                 data=output_file,
-                length=file_stat.st_size
+                length=file_stat.st_size,
             )
             logger.info(f"Created {prefix}/{file_name}.")
 
@@ -71,18 +71,20 @@ def put_directory_to_minio(client: Minio, bucket: str, prefix: str, output_dir: 
 def deconstruct_file(client: Minio, bucket: str, object_name: str):
     # Check if deconstruct folder exists and if .xml and .npy files are present
     objects = list(client.list_objects(bucket, prefix="deconstruct/"))
-    xml_exists = any(obj.object_name.endswith('.xml') for obj in objects)
-    npy_exists = any(obj.object_name.endswith('.npy') for obj in objects)
+    xml_exists = any(obj.object_name.endswith(".xml") for obj in objects)
+    npy_exists = any(obj.object_name.endswith(".npy") for obj in objects)
     if xml_exists and npy_exists:
         logger.info("Deconstruct already exists. Skipping deconstruct.")
         return
-    
+
     # Get mzML from bucket
     response = client.get_object(bucket, f"download/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
-    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
+        dir="/tmp"
+    ) as output_dir:
         input_file_path = os.path.join(input_dir, object_name)
         with open(input_file_path, "wb") as input_file:
             input_file.write(file_data)
@@ -92,14 +94,14 @@ def deconstruct_file(client: Minio, bucket: str, object_name: str):
             image="chrisagrams/mzml-construct:latest",
             command="python -u deconstruct.py /input/test.mzML /output/ -f npy",
             host_config=docker_client.create_host_config(
-                binds = {
-                    input_dir: {'bind': '/input', 'mode': 'ro'},
-                    output_dir: {'bind': '/output', 'mode': 'rw'}
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
                 }
-            )
+            ),
         )
 
-        container_id = container.get('Id')
+        container_id = container.get("Id")
 
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
@@ -112,19 +114,21 @@ def deconstruct_file(client: Minio, bucket: str, object_name: str):
 def search_file(client: Minio, bucket: str, object_name: str):
     # Check if search folder exists and if search files are present
     objects = list(client.list_objects(bucket, prefix="search/"))
-    pepxml_exists = any(obj.object_name.endswith('.pepXML') for obj in objects)
-    pin_exists = any(obj.object_name.endswith('.pin') for obj in objects)
-    tsv_exists = any(obj.object_name.endswith('.tsv') for obj in objects)
+    pepxml_exists = any(obj.object_name.endswith(".pepXML") for obj in objects)
+    pin_exists = any(obj.object_name.endswith(".pin") for obj in objects)
+    tsv_exists = any(obj.object_name.endswith(".tsv") for obj in objects)
     if pepxml_exists and pin_exists and tsv_exists:
         logger.info("Search already exists. Skipping search.")
         return
-    
+
     # Get mzML from bucket
     response = client.get_object(bucket, f"download/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
-    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
+        dir="/tmp"
+    ) as output_dir:
         input_file_path = os.path.join(input_dir, object_name)
         with open(input_file_path, "wb") as input_file:
             input_file.write(file_data)
@@ -135,14 +139,14 @@ def search_file(client: Minio, bucket: str, object_name: str):
             entrypoint="/app/entrypoint.sh",
             command="/input/test.mzML /output",
             host_config=docker_client.create_host_config(
-                binds = {
-                    input_dir: {'bind': '/input', 'mode': 'ro'},
-                    output_dir: {'bind': '/output', 'mode': 'rw'}
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
                 }
-            )
+            ),
         )
 
-        container_id = container.get('Id')
+        container_id = container.get("Id")
 
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
@@ -150,9 +154,9 @@ def search_file(client: Minio, bucket: str, object_name: str):
 
         # Unzip the output ZIP file
         for file_name in os.listdir(output_dir):
-            if file_name.endswith('.zip'):
+            if file_name.endswith(".zip"):
                 zip_path = os.path.join(output_dir, file_name)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
                     zip_ref.extractall(output_dir)
                 os.remove(zip_path)
 

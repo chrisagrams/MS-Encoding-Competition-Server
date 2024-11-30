@@ -22,7 +22,7 @@ class TestResultModel(BaseModel):
         orm_mode = True
 
 
-# Used in client 
+# Used in client
 class ResultModel(BaseModel):
     submission_id: str
     name: str
