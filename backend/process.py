@@ -107,6 +107,15 @@ def deconstruct_file(client: Minio, bucket: str, object_name: str):
 
 
 def search_file(client: Minio, bucket: str, object_name: str):
+    # Check if search folder exists and if search files are present
+    objects = list(client.list_objects(bucket, prefix="search/"))
+    pepxml_exists = any(obj.object_name.endswith('.pepXML') for obj in objects)
+    pin_exists = any(obj.object_name.endswith('.pin') for obj in objects)
+    tsv_exists = any(obj.object_name.endswith('.tsv') for obj in objects)
+    if pepxml_exists and pin_exists and tsv_exists:
+        logger.info("Search already exists. Skipping search.")
+        return
+    
     # Get mzML from bucket
     response = client.get_object(bucket, f"download/{object_name}")
     file_data = response.read()
