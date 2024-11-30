@@ -8,10 +8,10 @@ import zipfile
 import tarfile
 import uuid
 from sqlalchemy.orm import Session
-from schema import Base, SessionLocal, engine, Submission
-from models import SubmissionModel
+from schema import Base, SessionLocal, engine, Submission, TestResult
+from models import SubmissionModel, ResultModel
 from collections import defaultdict
-from typing import Dict, Set
+from typing import Dict, Set, List
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from process import prepare_benchmarks
@@ -114,6 +114,26 @@ async def upload(
     db.refresh(new_submission)
 
     return {"file_key": file_key, "message": "File uploaded successfully"}
+
+
+@app.get("/results", response_model=List[ResultModel])
+def get_all_results(db: Session = Depends(get_db)):
+    results = db.query(TestResult).join(Submission).all()
+    
+    result_list = []
+    for result in results:
+        submission = result.submission
+        result_list.append(ResultModel(
+            submission_id=submission.file_key,
+            name=submission.name,
+            submission_name=submission.submission_name,
+            runtime=result.runtime,
+            ratio=result.ratio,
+            accuracy=result.accuracy,
+            status=result.status
+        ))
+    
+    return result_list
 
 
 @app.post("/build-container/{file_key}")
