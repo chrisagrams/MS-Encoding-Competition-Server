@@ -1,4 +1,13 @@
 import { ColumnDef } from "@tanstack/react-table";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
+
+import { IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 
 export type Result = {
     submission_id: string
@@ -18,18 +27,50 @@ const computeMinMax = (rows: any[], columnId: string) => {
     };
 };
 
-const getColor = (value: number, min: number, max: number) => {
+const getTailwindColor = (value: number, min: number, max: number) => {
     const ratio = (value - min) / (max - min);
-    const red = Math.round(255 * ratio);
-    const green = Math.round(255 * (1 - ratio));
-    const blue = 50;
-    return `rgb(${red}, ${green}, ${blue})`;
+    switch (true) {
+        case ratio <= 0.125:
+            return "bg-red-400";
+        case ratio <= 0.25:
+            return "bg-red-300";
+        case ratio <= 0.375:
+            return "bg-red-200";
+        case ratio <= 0.5:
+            return "bg-red-100";
+        case ratio <= 0.625:
+            return "bg-green-100";
+        case ratio <= 0.75:
+            return "bg-green-200";
+        case ratio <= 0.875:
+            return "bg-green-300";
+        default:
+            return "bg-green-400";
+    }
 };
 
 export const columns: ColumnDef<Result>[] = [
     {
         accessorKey: "submission_id",
         header: "ID",
+        cell: ({ row }) => {
+            const value = row.getValue("submission_id") as string
+            const subvalue = value.split("-").pop() as string
+            return (
+                <div className="text-center">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Badge className="p-1 font-mono" variant="secondary">{subvalue}</Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="font-mono">{value}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+            )
+        }
     },
     {
         accessorKey: "name",
@@ -45,20 +86,12 @@ export const columns: ColumnDef<Result>[] = [
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "runtime")
             const value = parseFloat(row.getValue("runtime"))
-            const backgroundColor = getColor(value, min, max)
+            const backgroundColor = getTailwindColor(value, max, min)
             return (
-                <div
-                  style={{
-                    backgroundColor,
-                    padding: "8px",
-                    borderRadius: "4px",
-                    textAlign: "right",
-                    fontWeight: "500",
-                  }}
-                >
-                  {value}s
+                <div className={`${backgroundColor} p-2 rounded text-right font-medium`}>
+                    {value}s
                 </div>
-              );
+            );
         }
     },
     {
@@ -67,20 +100,12 @@ export const columns: ColumnDef<Result>[] = [
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "ratio")
             const value = parseFloat(row.getValue("ratio"))
-            const backgroundColor = getColor(value, max, min)
+            const backgroundColor = getTailwindColor(value, min, max)
             return (
-                <div
-                  style={{
-                    backgroundColor,
-                    padding: "8px",
-                    borderRadius: "4px",
-                    textAlign: "right",
-                    fontWeight: "500",
-                  }}
-                >
-                  {(value * 100).toFixed(2)}%
+                <div className={`${backgroundColor} p-2 rounded text-right font-medium`}>
+                    {(value * 100).toFixed(2)}%
                 </div>
-              );
+            );
         }
     },
     {
@@ -89,24 +114,29 @@ export const columns: ColumnDef<Result>[] = [
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "accuracy")
             const value = parseFloat(row.getValue("accuracy"))
-            const backgroundColor = getColor(value, max, min)
+            const backgroundColor = getTailwindColor(value, min, max)
             return (
-                <div
-                  style={{
-                    backgroundColor,
-                    padding: "8px",
-                    borderRadius: "4px",
-                    textAlign: "right",
-                    fontWeight: "500",
-                  }}
-                >
-                  {(value * 100).toFixed(2)}%
+                <div className={`${backgroundColor} p-2 rounded text-right font-medium`}>
+                    {(value * 100).toFixed(2)}%
                 </div>
-              );
+            );
         }
     },
     {
         accessorKey: "status",
         header: "Status",
+        cell: ({ row }) => {
+          const value = row.getValue("status");
+          return (
+            <>
+              {value === "success" && (
+                <IoCheckmarkCircle className="text-green-400 text-3xl m-auto" />
+              )}
+              {value === "error" && (
+                <IoCloseCircle className="text-red-400 text-3xl m-auto" />
+              )}
+            </>
+          );
+        },
     }
 ]

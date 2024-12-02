@@ -1,6 +1,14 @@
 import { Result, columns } from "./columns"
 import { RankingTable } from "./RankingTable"
 import { useState, useEffect } from "react"
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
 
 export const Ranking = () => {
 
@@ -29,8 +37,14 @@ export const Ranking = () => {
     }, []);
 
     return (
-        <div className="container mx-auto py-10">
-            <RankingTable columns={columns} data={data} />
-        </div>
+        <Card className="h-full">
+            <CardHeader>
+                <CardTitle>Ranking</CardTitle>
+                <CardDescription>Current rankings of submissions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <RankingTable columns={columns} data={data} />
+            </CardContent>
+        </Card>
     )
 }
