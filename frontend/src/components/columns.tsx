@@ -5,6 +5,8 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
+import { ArrowUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 import { IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
@@ -82,7 +84,17 @@ export const columns: ColumnDef<Result>[] = [
     },
     {
         accessorKey: "runtime",
-        header: "Runtime",
+        header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Runtime
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "runtime")
             const value = parseFloat(row.getValue("runtime"))
@@ -96,7 +108,17 @@ export const columns: ColumnDef<Result>[] = [
     },
     {
         accessorKey: "ratio",
-        header: "Deflate Ratio",
+        header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Deflate Ratio
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "ratio")
             const value = parseFloat(row.getValue("ratio"))
@@ -110,7 +132,17 @@ export const columns: ColumnDef<Result>[] = [
     },
     {
         accessorKey: "accuracy",
-        header: "Search Accuracy",
+        header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Search Accuracy
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            )
+        },
         cell: ({ row, table }) => {
             const { min, max } = computeMinMax(table.getRowModel().rows, "accuracy")
             const value = parseFloat(row.getValue("accuracy"))
