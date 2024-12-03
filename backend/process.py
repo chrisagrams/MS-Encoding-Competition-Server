@@ -1,3 +1,5 @@
+import time
+from statistics import mean
 import docker
 import logging
 import requests
@@ -6,6 +8,9 @@ import os
 import zipfile
 from minio import Minio
 from minio.error import S3Error
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from schema import TestResult
 
 docker_client = docker.APIClient()
 
@@ -170,4 +175,75 @@ def prepare_benchmarks(client: Minio, url: str, object_name: str):
     search_file(client, INTER_RUN_BUCKET, object_name)
 
 
-# def benchmark_image(tag: str):
+def encode_benchmark(client: Minio, image: str, src_bucket: str, dest_bucket: str, object_name: str, db_session: Session):
+    # Get npy from bucket
+    response = client.get_object(src_bucket, f"deconstruct/{object_name}")
+    file_data = response.read()
+
+    # Create two temporary directories, input and output
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+        input_file_path = os.path.join(input_dir, object_name)
+        with open(input_file_path, "wb") as input_file:
+            input_file.write(file_data)
+
+        # Prepare benchmark runs
+        run_times = []
+        for _ in range(5):  # Run the container 5 times
+            # Configure container
+            container = docker_client.create_container(
+                image=f"transform-{image}",
+                command="python -u main.py /input/test.npy /output/transformed.npy --mode=encode",
+                host_config=docker_client.create_host_config(
+                    binds={
+                        input_dir: {"bind": "/input", "mode": "ro"},
+                        output_dir: {"bind": "/output", "mode": "rw"},
+                    }
+                ),
+            )
+
+            container_id = container.get("Id")
+
+            # Start timing
+            start_time = time.time()
+
+            docker_client.start(container=container_id)
+            docker_client.wait(container=container_id)
+
+            end_time = time.time()
+            run_times.append(end_time - start_time)
+
+            logger.info(f"Runtime: {(end_time-start_time):.2f}")
+            
+            # Remove container after run
+            docker_client.remove_container(container=container_id, force=True)
+
+        # Calculate average execution time
+        average_time = mean(run_times)
+        logger.info(f"Average execution time over 5 runs: {average_time:.2f} seconds")
+
+        # Update encoding runtime in the database
+        try:
+            test_result = db_session.query(TestResult).filter_by(submission_id=image).first()
+            if test_result:
+                test_result.encoding_runtime = average_time
+                db_session.commit()
+                logger.info(f"Updated encoding_runtime for ID: {image}")
+        except SQLAlchemyError as e:
+            db_session.rollback()
+            logger.error(f"Failed to update encoding_runtime: {str(e)}")
+
+
+def benchmark_image(client: Minio, image: str, db_session: Session):
+    new_test_result = TestResult(
+        submission_id=image,
+        encoding_runtime=None,
+        decoding_runtime=None,
+        ratio=None,
+        accuracy=None,
+        status="pending"
+    )
+    db_session.add(new_test_result)
+    db_session.commit()
+    logger.info(f"Created new TestResult with ID: {new_test_result.id}")
+    encode_benchmark(client, image, INTER_RUN_BUCKET, "test", "test.npy", db_session)
+

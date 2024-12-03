@@ -27,10 +27,10 @@ class ResultModel(BaseModel):
     submission_id: str
     name: str
     submission_name: str
-    encoding_runtime: float
-    decoding_runtime: float
-    ratio: float
-    accuracy: float
+    encoding_runtime: Optional[float] = None
+    decoding_runtime: Optional[float] = None
+    ratio: Optional[float] = None
+    accuracy: Optional[float] = None
     status: str
 
     class Config:

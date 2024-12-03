@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from minio import Minio
 from io import BytesIO
@@ -14,7 +14,7 @@ from collections import defaultdict
 from typing import Dict, Set, List
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from process import prepare_benchmarks
+from process import prepare_benchmarks, benchmark_image
 import os
 import logging
 
@@ -198,3 +198,15 @@ async def build_container(file_key: str):
             raise HTTPException(status_code=500, detail=error_message)
 
     return StreamingResponse(log_stream(), media_type="text/plain")
+
+
+@app.post("/benchmark")
+async def run_benchmark(background_tasks: BackgroundTasks, image: str):
+    db_session = SessionLocal()
+    background_tasks.add_task(
+        benchmark_image,
+        client=minio_client,
+        image=image,
+        db_session=db_session
+    )
+    return {"message": "Benchmark started."}
