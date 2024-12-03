@@ -23,7 +23,8 @@ class TestResult(Base):
     __tablename__ = "test_results"
     id = Column(Integer, primary_key=True, index=True)
     submission_id = Column(String, ForeignKey("submission.file_key"))
-    runtime = Column(Float)
+    encoding_runtime = Column(Float)
+    decoding_runtime = Column(Float)
     ratio = Column(Float)
     accuracy = Column(Float)
     status = Column(String, nullable=False)

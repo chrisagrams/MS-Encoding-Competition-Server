@@ -15,7 +15,8 @@ export type Result = {
     submission_id: string
     name: string
     submission_name: string
-    runtime: number
+    encoding_runtime: number
+    decoding_runtime: number
     ratio: number
     accuracy: number
     status: "pending" | "success" | "failed"
@@ -83,21 +84,45 @@ export const columns: ColumnDef<Result>[] = [
         header: "Submission Name",
     },
     {
-        accessorKey: "runtime",
+        accessorKey: "encoding_runtime",
         header: ({ column }) => {
             return (
               <Button
                 variant="ghost"
                 onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
               >
-                Runtime
+                Encoding Runtime
                 <ArrowUpDown className="ml-2 h-4 w-4" />
               </Button>
             )
         },
         cell: ({ row, table }) => {
-            const { min, max } = computeMinMax(table.getRowModel().rows, "runtime")
-            const value = parseFloat(row.getValue("runtime"))
+            const { min, max } = computeMinMax(table.getRowModel().rows, "encoding_runtime")
+            const value = parseFloat(row.getValue("encoding_runtime"))
+            const backgroundColor = getTailwindColor(value, max, min)
+            return (
+                <div className={`${backgroundColor} p-2 rounded text-right font-medium`}>
+                    {value}s
+                </div>
+            );
+        }
+    },
+    {
+        accessorKey: "decoding_runtime",
+        header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Decoding Runtime
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            )
+        },
+        cell: ({ row, table }) => {
+            const { min, max } = computeMinMax(table.getRowModel().rows, "decoding_runtime")
+            const value = parseFloat(row.getValue("decoding_runtime"))
             const backgroundColor = getTailwindColor(value, max, min)
             return (
                 <div className={`${backgroundColor} p-2 rounded text-right font-medium`}>

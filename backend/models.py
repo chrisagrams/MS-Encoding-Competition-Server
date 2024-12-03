@@ -27,7 +27,8 @@ class ResultModel(BaseModel):
     submission_id: str
     name: str
     submission_name: str
-    runtime: float
+    encoding_runtime: float
+    decoding_runtime: float
     ratio: float
     accuracy: float
     status: str
