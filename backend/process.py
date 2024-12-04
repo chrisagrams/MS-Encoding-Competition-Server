@@ -5,6 +5,7 @@ import logging
 import requests
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 import os
+from pathlib import Path
 import zipfile
 from minio import Minio
 from minio.error import S3Error
@@ -199,6 +200,17 @@ def update_database_entry(db_session, submission_id, field, value):
         logger.error(f"Failed to update {field} for ID {submission_id}: {str(e)}")
 
 
+def compute_ratio(original_file: Path, compressed_file: Path) -> float:
+    compression_ratio = float('nan')
+    try: 
+        original_size = os.path.getsize(original_file)
+        compressed_size = os.path.getsize(compressed_file)
+        compression_ratio = (original_size - compressed_size) / original_size
+    except OSError as e:
+        logger.error(f"Error computing file sizes: {str(e)}")
+    return compression_ratio
+
+
 def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: str, db_session: Session):
     # Get npy from bucket
     response = client.get_object(src_bucket, f"deconstruct/{object_name}")
@@ -248,7 +260,7 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         # Update in DB
         update_database_entry(db_session, image, "encoding_runtime", average_time)
 
-        decode_run_times = []
+        run_times = []
         for _ in range(5): # Run the container 5 times
             # Configure contaienr
             container = docker_client.create_container(
@@ -286,16 +298,10 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         update_database_entry(db_session, image, "decoding_runtime", average_time)
 
         # Compute compression ratio
-        original_file = os.path.join(input_dir, "test.npy")
-        compressed_file = os.path.join(output_dir, "transformed.npy")
-        compression_ratio = None
-        try:
-            original_size = os.path.getsize(original_file)
-            compressed_size = os.path.getsize(compressed_file)
-            compression_ratio = (original_size - compressed_size) / original_size
-            logger.info(f"Compression ratio: {compression_ratio:.4f}")
-        except OSError as e:
-            logger.error(f"Error computing file sizes: {str(e)}")
+        compression_ratio = compute_ratio(
+            original_file=os.path.join(input_dir, "test.npy"),
+            compressed_file=os.path.join(output_dir, "transformed.npy")
+        )
 
         # Update compression ratio in the database
         update_database_entry(db_session, image, "ratio", compression_ratio)
