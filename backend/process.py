@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 INTER_RUN_BUCKET = "inter-run-bucket"
 
-
 def download_file(client: Minio, url: str, bucket: str, object_name: str):
     try:
         # Ensure the bucket exists
@@ -175,7 +174,32 @@ def prepare_benchmarks(client: Minio, url: str, object_name: str):
     search_file(client, INTER_RUN_BUCKET, object_name)
 
 
-def encode_benchmark(client: Minio, image: str, src_bucket: str, dest_bucket: str, object_name: str, db_session: Session):
+def update_database_entry(db_session, submission_id, field, value):
+    """
+    Utility function to update a specific field in the database.
+    If the entry does not exist, it creates a new one.
+    """
+    try:
+        test_result = db_session.query(TestResult).filter_by(submission_id=submission_id).first()
+        if not test_result:
+            test_result = TestResult(
+                submission_id=submission_id,
+                encoding_runtime=None,
+                decoding_runtime=None,
+                ratio=None,
+                accuracy=None,
+                status="pending"
+            )
+            db_session.add(test_result)
+        setattr(test_result, field, value)
+        db_session.commit()
+        logger.info(f"Updated {field} for ID: {submission_id} with value: {value}")
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        logger.error(f"Failed to update {field} for ID {submission_id}: {str(e)}")
+
+
+def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: str, db_session: Session):
     # Get npy from bucket
     response = client.get_object(src_bucket, f"deconstruct/{object_name}")
     file_data = response.read()
@@ -212,38 +236,72 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, dest_bucket: st
             end_time = time.time()
             run_times.append(end_time - start_time)
 
-            logger.info(f"Runtime: {(end_time-start_time):.2f}")
+            logger.info(f"Encoding runtime: {(end_time-start_time):.2f}")
             
             # Remove container after run
             docker_client.remove_container(container=container_id, force=True)
 
         # Calculate average execution time
         average_time = mean(run_times)
-        logger.info(f"Average execution time over 5 runs: {average_time:.2f} seconds")
+        logger.info(f"Average encode execution time over 5 runs: {average_time:.2f} seconds")
 
-        # Update encoding runtime in the database
+        # Update in DB
+        update_database_entry(db_session, image, "encoding_runtime", average_time)
+
+        decode_run_times = []
+        for _ in range(5): # Run the container 5 times
+            # Configure contaienr
+            container = docker_client.create_container(
+                image=f"transform-{image}",
+                command="python -u main.py /input/transformed.npy /output/new.npy --mode=decode",
+                host_config=docker_client.create_host_config(
+                    binds={
+                        output_dir: {"bind": "/input", "mode": "ro"}, # Bind the output from last container as input
+                        output_dir: {"bind": "/output", "mode": "rw"},
+                    }
+                ),
+            )
+
+            container_id = container.get("Id")
+
+            # Start timing
+            start_time = time.time()
+
+            docker_client.start(container=container_id)
+            docker_client.wait(container=container_id)
+
+            end_time = time.time()
+            run_times.append(end_time - start_time)
+
+            logger.info(f"Decoding runtime: {(end_time-start_time):.2f}")
+            
+            # Remove container after run
+            docker_client.remove_container(container=container_id, force=True)
+        
+        # Calculate average execution time
+        average_time = mean(run_times)
+        logger.info(f"Average encode execution time over 5 runs: {average_time:.2f} seconds")
+
+        # Update in DB
+        update_database_entry(db_session, image, "decoding_runtime", average_time)
+
+        # Compute compression ratio
+        original_file = os.path.join(input_dir, "test.npy")
+        compressed_file = os.path.join(output_dir, "transformed.npy")
+        compression_ratio = None
         try:
-            test_result = db_session.query(TestResult).filter_by(submission_id=image).first()
-            if test_result:
-                test_result.encoding_runtime = average_time
-                db_session.commit()
-                logger.info(f"Updated encoding_runtime for ID: {image}")
-        except SQLAlchemyError as e:
-            db_session.rollback()
-            logger.error(f"Failed to update encoding_runtime: {str(e)}")
+            original_size = os.path.getsize(original_file)
+            compressed_size = os.path.getsize(compressed_file)
+            compression_ratio = (original_size - compressed_size) / original_size
+            logger.info(f"Compression ratio: {compression_ratio:.4f}")
+        except OSError as e:
+            logger.error(f"Error computing file sizes: {str(e)}")
+
+        # Update compression ratio in the database
+        update_database_entry(db_session, image, "ratio", compression_ratio)
 
 
 def benchmark_image(client: Minio, image: str, db_session: Session):
-    new_test_result = TestResult(
-        submission_id=image,
-        encoding_runtime=None,
-        decoding_runtime=None,
-        ratio=None,
-        accuracy=None,
-        status="pending"
-    )
-    db_session.add(new_test_result)
-    db_session.commit()
-    logger.info(f"Created new TestResult with ID: {new_test_result.id}")
-    encode_benchmark(client, image, INTER_RUN_BUCKET, "test", "test.npy", db_session)
-
+    update_database_entry(db_session, image, "status", "pending")
+    encode_benchmark(client, image, INTER_RUN_BUCKET, "test.npy", db_session)
+    update_database_entry(db_session, image, "status", "success")
