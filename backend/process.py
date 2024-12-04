@@ -224,9 +224,6 @@ def eval_container(image: str, command: str, host_config: HostConfig, num_runs=5
         end_time = time.time()
         run_times.append(end_time - start_time)
 
-        logs = docker_client.logs(container=container_id)
-        logger.info(logs)
-
         # Remove container after run
         docker_client.remove_container(container=container_id, force=True)
 
@@ -349,8 +346,6 @@ def reconstruct_submission(client: Minio, image: str):
 
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
-        # logs = docker_client.logs(container=container_id)
-        # logger.info(logs)
         docker_client.remove_container(container=container_id)
        
 
