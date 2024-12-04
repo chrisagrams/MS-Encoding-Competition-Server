@@ -1,4 +1,12 @@
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Depends, BackgroundTasks
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    UploadFile,
+    HTTPException,
+    Depends,
+    BackgroundTasks,
+)
 from fastapi.responses import StreamingResponse
 from minio import Minio
 from io import BytesIO
@@ -204,9 +212,6 @@ async def build_container(file_key: str):
 async def run_benchmark(background_tasks: BackgroundTasks, image: str):
     db_session = SessionLocal()
     background_tasks.add_task(
-        benchmark_image,
-        client=minio_client,
-        image=image,
-        db_session=db_session
+        benchmark_image, client=minio_client, image=image, db_session=db_session
     )
     return {"message": "Benchmark started."}

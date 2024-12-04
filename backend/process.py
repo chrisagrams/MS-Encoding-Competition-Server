@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 RUN_BUCKET = "run-bucket"
 
+
 def download_file(client: Minio, url: str, bucket: str, prefix: str, object_name: str):
     try:
         # Ensure the bucket exists
@@ -184,7 +185,9 @@ def update_database_entry(db_session, submission_id, field, value):
     If the entry does not exist, it creates a new one.
     """
     try:
-        test_result = db_session.query(TestResult).filter_by(submission_id=submission_id).first()
+        test_result = (
+            db_session.query(TestResult).filter_by(submission_id=submission_id).first()
+        )
         if not test_result:
             test_result = TestResult(
                 submission_id=submission_id,
@@ -192,7 +195,7 @@ def update_database_entry(db_session, submission_id, field, value):
                 decoding_runtime=None,
                 ratio=None,
                 accuracy=None,
-                status="pending"
+                status="pending",
             )
             db_session.add(test_result)
         setattr(test_result, field, value)
@@ -203,21 +206,21 @@ def update_database_entry(db_session, submission_id, field, value):
         logger.error(f"Failed to update {field} for ID {submission_id}: {str(e)}")
 
 
-def eval_container(image: str, command: str, host_config: HostConfig, num_runs=5) -> float:
+def eval_container(
+    image: str, command: str, host_config: HostConfig, num_runs=5
+) -> float:
     run_times = []
     for _ in range(num_runs):
         # Create container
         container = docker_client.create_container(
-            image=image,
-            command=command,
-            host_config=host_config
+            image=image, command=command, host_config=host_config
         )
 
         container_id = container.get("Id")
 
-        # Start timing 
+        # Start timing
         start_time = time.time()
-        
+
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
 
@@ -232,10 +235,9 @@ def eval_container(image: str, command: str, host_config: HostConfig, num_runs=5
     return average_time
 
 
-
 def compute_ratio(original_file: Path, compressed_file: Path) -> float:
-    compression_ratio = float('nan')
-    try: 
+    compression_ratio = float("nan")
+    try:
         original_size = os.path.getsize(original_file)
         compressed_size = os.path.getsize(compressed_file)
         compression_ratio = (original_size - compressed_size) / original_size
@@ -244,13 +246,17 @@ def compute_ratio(original_file: Path, compressed_file: Path) -> float:
     return compression_ratio
 
 
-def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: str, db_session: Session):
+def encode_benchmark(
+    client: Minio, image: str, src_bucket: str, object_name: str, db_session: Session
+):
     # Get npy from bucket
     response = client.get_object(src_bucket, f"init/deconstruct/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
-    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
+        dir="/tmp"
+    ) as output_dir:
         input_file_path = os.path.join(input_dir, object_name)
         with open(input_file_path, "wb") as input_file:
             input_file.write(file_data)
@@ -264,7 +270,7 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
                     input_dir: {"bind": "/input", "mode": "ro"},
                     output_dir: {"bind": "/output", "mode": "rw"},
                 }
-            )
+            ),
         )
 
         # Update in DB
@@ -275,7 +281,9 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         if os.path.exists(transformed_path):
             copy2(transformed_path, input_dir)
         else:
-            raise FileNotFoundError(f"{transformed_path} does not exist after encoding!")
+            raise FileNotFoundError(
+                f"{transformed_path} does not exist after encoding!"
+            )
 
         # Decoding runtime
         decoding_runtime = eval_container(
@@ -286,15 +294,15 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
                     input_dir: {"bind": "/input", "mode": "ro"},
                     output_dir: {"bind": "/output", "mode": "rw"},
                 }
-            )
+            ),
         )
 
         # Update in DB
         update_database_entry(db_session, image, "decoding_runtime", decoding_runtime)
 
         # Compute compression ratio
-        original_file=os.path.join(input_dir, "test.npy")
-        compressed_file=os.path.join(output_dir, "transformed.npy")
+        original_file = os.path.join(input_dir, "test.npy")
+        compressed_file = os.path.join(output_dir, "transformed.npy")
         compression_ratio = compute_ratio(original_file, compressed_file)
 
         # Update compression ratio in the database
@@ -322,7 +330,9 @@ def reconstruct_submission(client: Minio, image: str):
     xml_data = response.read()
 
     # Create two temporary directories, input and output
-    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
+        dir="/tmp"
+    ) as output_dir:
         npy_file_path = os.path.join(input_dir, "new.npy")
         with open(npy_file_path, "wb") as input_file:
             input_file.write(npy_data)
@@ -347,7 +357,6 @@ def reconstruct_submission(client: Minio, image: str):
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
         docker_client.remove_container(container=container_id)
-       
 
         # Copy new.mzML to MinIO
         new_mzml_path = os.path.join(output_dir, "new.mzML")
@@ -359,22 +368,23 @@ def reconstruct_submission(client: Minio, image: str):
                 data=output_file,
                 length=file_stat.st_size,
             )
-        
+
         # Delete new.npy from MinIO
         client.remove_object(RUN_BUCKET, f"{image}/new.npy")
 
 
 def extract_percent_preserved(output_dir):
     results_path = os.path.join(output_dir, "results.csv")
-    
-    with open(results_path, mode='r') as csv_file:
+
+    with open(results_path, mode="r") as csv_file:
         csv_reader = csv.DictReader(csv_file)
-        
+
         for row in csv_reader:
-            if row['Metric'] == 'Percent Preserved':
-                return float(row['Value'])
-    
+            if row["Metric"] == "Percent Preserved":
+                return float(row["Value"])
+
     return None
+
 
 def compare_results(client: Minio, image: str, db_session: Session):
     # Get original pin file
@@ -385,11 +395,13 @@ def compare_results(client: Minio, image: str, db_session: Session):
     response = client.get_object(RUN_BUCKET, f"{image}/search/new.pin")
     new_pin_data = response.read()
 
-    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
+        dir="/tmp"
+    ) as output_dir:
         original_pin_path = os.path.join(input_dir, "test.pin")
         with open(original_pin_path, "wb") as input_file:
             input_file.write(original_pin_data)
-        
+
         new_pin_path = os.path.join(input_dir, "new.pin")
         with open(new_pin_path, "wb") as input_file:
             input_file.write(new_pin_data)
