@@ -146,7 +146,7 @@ def search_file(client: Minio, bucket: str, prefix: str, object_name: str):
         container = docker_client.create_container(
             image="chrisagrams/msfragger:UP000005640",
             entrypoint="/app/entrypoint.sh",
-            command="/input/test.mzML /output",
+            command=f"/input/{object_name} /output",
             host_config=docker_client.create_host_config(
                 binds={
                     input_dir: {"bind": "/input", "mode": "ro"},
