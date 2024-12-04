@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 import os
 from pathlib import Path
 import zipfile
+from shutil import copy2
 from minio import Minio
 from minio.error import S3Error
 from sqlalchemy.orm import Session
@@ -20,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 INTER_RUN_BUCKET = "inter-run-bucket"
+SUBMISSION_RUN_BUCKET = "submission-run-bucket"
 
 def download_file(client: Minio, url: str, bucket: str, object_name: str):
     try:
@@ -222,6 +224,9 @@ def eval_container(image: str, command: str, host_config: HostConfig, num_runs=5
         end_time = time.time()
         run_times.append(end_time - start_time)
 
+        logs = docker_client.logs(container=container_id)
+        logger.info(logs)
+
         # Remove container after run
         docker_client.remove_container(container=container_id, force=True)
 
@@ -268,13 +273,20 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         # Update in DB
         update_database_entry(db_session, image, "encoding_runtime", encoding_runtime)
 
+        # Copy transformed.npy to input_dir
+        transformed_path = os.path.join(output_dir, "transformed.npy")
+        if os.path.exists(transformed_path):
+            copy2(transformed_path, input_dir)
+        else:
+            raise FileNotFoundError(f"{transformed_path} does not exist after encoding!")
+
         # Decoding runtime
         decoding_runtime = eval_container(
             image=f"transform-{image}",
             command="python -u main.py /input/transformed.npy /output/new.npy --mode=decode",
             host_config=docker_client.create_host_config(
                 binds={
-                    output_dir: {"bind": "/input", "mode": "ro"}, # Bind the output from last container as input
+                    input_dir: {"bind": "/input", "mode": "ro"},
                     output_dir: {"bind": "/output", "mode": "rw"},
                 }
             )
@@ -284,16 +296,87 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         update_database_entry(db_session, image, "decoding_runtime", decoding_runtime)
 
         # Compute compression ratio
-        compression_ratio = compute_ratio(
-            original_file=os.path.join(input_dir, "test.npy"),
-            compressed_file=os.path.join(output_dir, "transformed.npy")
-        )
+        original_file=os.path.join(input_dir, "test.npy")
+        compressed_file=os.path.join(output_dir, "transformed.npy")
+        compression_ratio = compute_ratio(original_file, compressed_file)
 
         # Update compression ratio in the database
         update_database_entry(db_session, image, "ratio", compression_ratio)
 
+        # Put resulting .npy to submission run bucket
+        new_npy = os.path.join(output_dir, "new.npy")
+        with open(new_npy, "rb") as output_file:
+            file_stat = os.stat(new_npy)
+            client.put_object(
+                SUBMISSION_RUN_BUCKET,
+                f"{image}/new.npy",
+                data=output_file,
+                length=file_stat.st_size,
+            )
+
+
+def reconstruct_submission(client: Minio, image: str):
+    # Get npy from bucket
+    response = client.get_object(SUBMISSION_RUN_BUCKET, f"{image}/new.npy")
+    npy_data = response.read()
+
+    # Get XML from bucket
+    response = client.get_object(INTER_RUN_BUCKET, f"deconstruct/test.xml")
+    xml_data = response.read()
+
+    # Create two temporary directories, input and output
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+        npy_file_path = os.path.join(input_dir, "new.npy")
+        with open(npy_file_path, "wb") as input_file:
+            input_file.write(npy_data)
+        xml_file_path = os.path.join(input_dir, "test.xml")
+        with open(xml_file_path, "wb") as input_file:
+            input_file.write(xml_data)
+
+        # Reconstruct mzML
+        container = docker_client.create_container(
+            image="chrisagrams/mzml-construct:latest",
+            command="python -u construct.py /input/test.xml /input/new.npy /output/new.mzML",
+            host_config=docker_client.create_host_config(
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
+                }
+            ),
+        )
+
+        container_id = container.get("Id")
+
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+        # logs = docker_client.logs(container=container_id)
+        # logger.info(logs)
+        docker_client.remove_container(container=container_id)
+       
+
+        # Copy new.mzML to MinIO
+        new_mzml_path = os.path.join(output_dir, "new.mzML")
+        with open(new_mzml_path, "rb") as output_file:
+            file_stat = os.stat(new_mzml_path)
+            client.put_object(
+                SUBMISSION_RUN_BUCKET,
+                f"{image}/new.mzML",
+                data=output_file,
+                length=file_stat.st_size,
+            )
+        
+        # Delete new.npy from MinIO
+        client.remove_object(SUBMISSION_RUN_BUCKET, f"{image}/new.npy")
+
 
 def benchmark_image(client: Minio, image: str, db_session: Session):
+    try:
+        if not client.bucket_exists(SUBMISSION_RUN_BUCKET):
+            client.make_bucket(SUBMISSION_RUN_BUCKET)
+            logger.info(f"{SUBMISSION_RUN_BUCKET} created.")
+    except S3Error as e:
+        logger.error(f"MinIO error: {e}")
     update_database_entry(db_session, image, "status", "pending")
     encode_benchmark(client, image, INTER_RUN_BUCKET, "test.npy", db_session)
+    reconstruct_submission(client, image)
     update_database_entry(db_session, image, "status", "success")
