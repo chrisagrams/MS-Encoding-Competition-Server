@@ -1,6 +1,7 @@
 import time
 from statistics import mean
 import docker
+from docker.types import HostConfig
 import logging
 import requests
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -200,6 +201,36 @@ def update_database_entry(db_session, submission_id, field, value):
         logger.error(f"Failed to update {field} for ID {submission_id}: {str(e)}")
 
 
+def eval_container(image: str, command: str, host_config: HostConfig, num_runs=5) -> float:
+    run_times = []
+    for _ in range(num_runs):
+        # Create container
+        container = docker_client.create_container(
+            image=image,
+            command=command,
+            host_config=host_config
+        )
+
+        container_id = container.get("Id")
+
+        # Start timing 
+        start_time = time.time()
+        
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+
+        end_time = time.time()
+        run_times.append(end_time - start_time)
+
+        # Remove container after run
+        docker_client.remove_container(container=container_id, force=True)
+
+    # Calculate average execution time
+    average_time = mean(run_times)
+    return average_time
+
+
+
 def compute_ratio(original_file: Path, compressed_file: Path) -> float:
     compression_ratio = float('nan')
     try: 
@@ -222,80 +253,35 @@ def encode_benchmark(client: Minio, image: str, src_bucket: str, object_name: st
         with open(input_file_path, "wb") as input_file:
             input_file.write(file_data)
 
-        # Prepare benchmark runs
-        run_times = []
-        for _ in range(5):  # Run the container 5 times
-            # Configure container
-            container = docker_client.create_container(
-                image=f"transform-{image}",
-                command="python -u main.py /input/test.npy /output/transformed.npy --mode=encode",
-                host_config=docker_client.create_host_config(
-                    binds={
-                        input_dir: {"bind": "/input", "mode": "ro"},
-                        output_dir: {"bind": "/output", "mode": "rw"},
-                    }
-                ),
+        # Evaluate encode
+        encoding_runtime = eval_container(
+            image=f"transform-{image}",
+            command="python -u main.py /input/test.npy /output/transformed.npy --mode=encode",
+            host_config=docker_client.create_host_config(
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
+                }
             )
-
-            container_id = container.get("Id")
-
-            # Start timing
-            start_time = time.time()
-
-            docker_client.start(container=container_id)
-            docker_client.wait(container=container_id)
-
-            end_time = time.time()
-            run_times.append(end_time - start_time)
-
-            logger.info(f"Encoding runtime: {(end_time-start_time):.2f}")
-            
-            # Remove container after run
-            docker_client.remove_container(container=container_id, force=True)
-
-        # Calculate average execution time
-        average_time = mean(run_times)
-        logger.info(f"Average encode execution time over 5 runs: {average_time:.2f} seconds")
+        )
 
         # Update in DB
-        update_database_entry(db_session, image, "encoding_runtime", average_time)
+        update_database_entry(db_session, image, "encoding_runtime", encoding_runtime)
 
-        run_times = []
-        for _ in range(5): # Run the container 5 times
-            # Configure contaienr
-            container = docker_client.create_container(
-                image=f"transform-{image}",
-                command="python -u main.py /input/transformed.npy /output/new.npy --mode=decode",
-                host_config=docker_client.create_host_config(
-                    binds={
-                        output_dir: {"bind": "/input", "mode": "ro"}, # Bind the output from last container as input
-                        output_dir: {"bind": "/output", "mode": "rw"},
-                    }
-                ),
+        # Decoding runtime
+        decoding_runtime = eval_container(
+            image=f"transform-{image}",
+            command="python -u main.py /input/transformed.npy /output/new.npy --mode=decode",
+            host_config=docker_client.create_host_config(
+                binds={
+                    output_dir: {"bind": "/input", "mode": "ro"}, # Bind the output from last container as input
+                    output_dir: {"bind": "/output", "mode": "rw"},
+                }
             )
-
-            container_id = container.get("Id")
-
-            # Start timing
-            start_time = time.time()
-
-            docker_client.start(container=container_id)
-            docker_client.wait(container=container_id)
-
-            end_time = time.time()
-            run_times.append(end_time - start_time)
-
-            logger.info(f"Decoding runtime: {(end_time-start_time):.2f}")
-            
-            # Remove container after run
-            docker_client.remove_container(container=container_id, force=True)
-        
-        # Calculate average execution time
-        average_time = mean(run_times)
-        logger.info(f"Average encode execution time over 5 runs: {average_time:.2f} seconds")
+        )
 
         # Update in DB
-        update_database_entry(db_session, image, "decoding_runtime", average_time)
+        update_database_entry(db_session, image, "decoding_runtime", decoding_runtime)
 
         # Compute compression ratio
         compression_ratio = compute_ratio(
