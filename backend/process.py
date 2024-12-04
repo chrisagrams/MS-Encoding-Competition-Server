@@ -5,6 +5,7 @@ from docker.types import HostConfig
 import logging
 import requests
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+import csv
 import os
 from pathlib import Path
 import zipfile
@@ -364,6 +365,101 @@ def reconstruct_submission(client: Minio, image: str):
         client.remove_object(SUBMISSION_RUN_BUCKET, f"{image}/new.npy")
 
 
+def search_submission(client: Minio, image: str):
+    # Get mzML from bucket
+    response = client.get_object(SUBMISSION_RUN_BUCKET, f"{image}/new.mzML")
+    mzml_data = response.read()
+
+    # Create two temporary directories, input and output
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+        mzml_file_path = os.path.join(input_dir, "new.mzML")
+        with open(mzml_file_path, "wb") as input_file:
+            input_file.write(mzml_data)
+
+        # Configure and start container
+        container = docker_client.create_container(
+            image="chrisagrams/msfragger:UP000005640",
+            entrypoint="/app/entrypoint.sh",
+            command="/input/new.mzML /output",
+            host_config=docker_client.create_host_config(
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
+                }
+            ),
+        )
+
+        container_id = container.get("Id")
+
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+        docker_client.remove_container(container=container_id)
+
+        # Unzip the output ZIP file
+        for file_name in os.listdir(output_dir):
+            if file_name.endswith(".zip"):
+                zip_path = os.path.join(output_dir, file_name)
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                    zip_ref.extractall(output_dir)
+                os.remove(zip_path)
+
+        # Upload results to MinIO
+        put_directory_to_minio(client, SUBMISSION_RUN_BUCKET, f"{image}/search", output_dir)
+
+
+def extract_percent_preserved(output_dir):
+    results_path = os.path.join(output_dir, "results.csv")
+    
+    with open(results_path, mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        
+        for row in csv_reader:
+            if row['Metric'] == 'Percent Preserved':
+                return float(row['Value'])
+    
+    return None
+
+def compare_results(client: Minio, image: str, db_session: Session):
+    # Get original pin file
+    response = client.get_object(INTER_RUN_BUCKET, f"search/test.pin")
+    original_pin_data = response.read()
+
+    # Get search pin file
+    response = client.get_object(SUBMISSION_RUN_BUCKET, f"{image}/search/new.pin")
+    new_pin_data = response.read()
+
+    with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(dir="/tmp") as output_dir:
+        original_pin_path = os.path.join(input_dir, "test.pin")
+        with open(original_pin_path, "wb") as input_file:
+            input_file.write(original_pin_data)
+        
+        new_pin_path = os.path.join(input_dir, "new.pin")
+        with open(new_pin_path, "wb") as input_file:
+            input_file.write(new_pin_data)
+
+        # Run compare container
+        container = docker_client.create_container(
+            image="chrisagrams/pats-compare:latest",
+            command="/input/test.pin /input/new.pin /output/",
+            host_config=docker_client.create_host_config(
+                binds={
+                    input_dir: {"bind": "/input", "mode": "ro"},
+                    output_dir: {"bind": "/output", "mode": "rw"},
+                }
+            ),
+        )
+
+        container_id = container.get("Id")
+
+        docker_client.start(container=container_id)
+        docker_client.wait(container=container_id)
+        docker_client.remove_container(container=container_id)
+
+        percent_preserved = extract_percent_preserved(output_dir)
+
+        update_database_entry(db_session, image, "accuracy", percent_preserved)
+
+
 def benchmark_image(client: Minio, image: str, db_session: Session):
     try:
         if not client.bucket_exists(SUBMISSION_RUN_BUCKET):
@@ -374,4 +470,6 @@ def benchmark_image(client: Minio, image: str, db_session: Session):
     update_database_entry(db_session, image, "status", "pending")
     encode_benchmark(client, image, INTER_RUN_BUCKET, "test.npy", db_session)
     reconstruct_submission(client, image)
+    search_submission(client, image)
+    compare_results(client, image, db_session)
     update_database_entry(db_session, image, "status", "success")
