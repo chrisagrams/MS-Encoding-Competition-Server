@@ -28,8 +28,11 @@ services:
       - /tmp:/tmp
       - .env:/app/.env
     depends_on:
-      - postgres
-      - minio  
+      postgres:
+          condition: service_healthy
+          restart: true
+      minio:
+        condition: service_started
   
   postgres:
     image: postgres:15
@@ -41,6 +44,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: submissions
+    healthcheck:
+      test: "pg_isready -U postgres -d submissions || exit 1"
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
