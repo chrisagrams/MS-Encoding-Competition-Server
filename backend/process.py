@@ -14,7 +14,7 @@ from minio import Minio
 from minio.error import S3Error
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from schema import TestResult
+from models.schema import TestResult
 
 docker_client = docker.APIClient()
 

@@ -1,4 +1,4 @@
-import { ColumnDef } from "@tanstack/react-table"
+import { ColumnDef, Row } from "@tanstack/react-table"
 import {
     Tooltip,
     TooltipContent,
@@ -23,7 +23,7 @@ export type Result = {
     status: "pending" | "success" | "failed"
 }
 
-const computeMinMax = (rows: any[], columnId: string) => {
+const computeMinMax = (rows: Row<Result>[], columnId: string) => {
     const values = rows.map((row) => parseFloat(row.getValue(columnId)))
     return {
       min: Math.min(...values),

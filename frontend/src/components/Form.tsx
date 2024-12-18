@@ -7,7 +7,6 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -23,7 +22,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 
-import { BuildPopup, BuildPopupProps } from "./BuildPopup"
+import { BuildPopup } from "./BuildPopup"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -151,7 +150,7 @@ export const SubmissionForm = () => {
                   <FormField
                   control={form.control}
                   name="file"
-                  render={({ field }) => (
+                  render={() => (
                       <FormItem>
                       <FormLabel>File Upload</FormLabel>
                       <FormControl>

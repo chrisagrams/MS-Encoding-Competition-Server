@@ -1,0 +1,63 @@
+name: ms-encoding-competition-server
+
+services:
+
+  frontend:
+    image: "chrisagrams/ms-encoding-competition-server-frontend"
+    container_name: mecs-frontend
+    build:
+      context: ./frontend
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
+    ports:
+      - "8000:80"
+    depends_on:
+      - backend
+  
+  backend:
+    image: "chrisagrams/ms-encoding-competition-server-backend"
+    container_name: mecs-backend
+    build:
+      context: ./backend
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+      - .env:/app/.env
+    depends_on:
+      - postgres
+      - minio  
+  
+  postgres:
+    image: postgres:15
+    container_name: mecs-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: submissions
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: mecs-minio
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    environment:
+      MINIO_ROOT_USER: "admin"
+      MINIO_ROOT_PASSWORD: "password"
+    command: server /data --console-address ":9090"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:
+    

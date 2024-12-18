@@ -1,11 +1,11 @@
 FROM python:3.13-slim
 
-WORKDIR /app
+WORKDIR /backend
 
-COPY requirements.txt /app
+COPY requirements.txt /backend/
 
 RUN pip install -r requirements.txt --no-cache-dir
 
-COPY *.py /app/
+COPY . /backend/
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--lifespan", "on", "--log-level", "debug"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--lifespan", "on", "--log-level", "debug"]

@@ -5,7 +5,6 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -13,12 +12,12 @@ import {
 export const Ranking = () => {
 
     const [data, setData] = useState<Result[]>([])
-    const [loading, setLoading] = useState<boolean>(true);
+    // const [loading, setLoading] = useState<boolean>(true); //TODO: Show loading spinner
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                setLoading(true);
+                // setLoading(true);
                 const response = await fetch('/api/results'); 
                 
                 if (!response.ok) {
@@ -30,7 +29,7 @@ export const Ranking = () => {
             } catch (err) {
                 console.error('Error fetching data:', err);
             } finally {
-                setLoading(false);
+                // setLoading(false);
             }
         };
         fetchData();
