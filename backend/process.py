@@ -15,6 +15,7 @@ from minio.error import S3Error
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from models.schema import TestResult
+from utils.docker import check_and_pull_image
 
 docker_client = docker.APIClient()
 
@@ -99,6 +100,7 @@ def deconstruct_file(client: Minio, bucket: str, prefix: str, object_name: str):
             input_file.write(file_data)
 
         # Configure and start container
+        check_and_pull_image("chrisagrams/mzml-construct:latest")
         container = docker_client.create_container(
             image="chrisagrams/mzml-construct:latest",
             command="python -u deconstruct.py /input/test.mzML /output/ -f npy",
@@ -143,6 +145,7 @@ def search_file(client: Minio, bucket: str, prefix: str, object_name: str):
             input_file.write(file_data)
 
         # Configure and start container
+        check_and_pull_image("chrisagrams/msfragger:UP000005640")
         container = docker_client.create_container(
             image="chrisagrams/msfragger:UP000005640",
             entrypoint="/app/entrypoint.sh",
@@ -341,6 +344,7 @@ def reconstruct_submission(client: Minio, image: str):
             input_file.write(xml_data)
 
         # Reconstruct mzML
+        check_and_pull_image("chrisagrams/mzml-construct:latest")
         container = docker_client.create_container(
             image="chrisagrams/mzml-construct:latest",
             command="python -u construct.py /input/test.xml /input/new.npy /output/new.mzML",
@@ -407,6 +411,7 @@ def compare_results(client: Minio, image: str, db_session: Session):
             input_file.write(new_pin_data)
 
         # Run compare container
+        check_and_pull_image("chrisagrams/pats-compare:latest")
         container = docker_client.create_container(
             image="chrisagrams/pats-compare:latest",
             command="/input/test.pin /input/new.pin /output/",
