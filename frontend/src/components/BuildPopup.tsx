@@ -6,8 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ColorRing } from "react-loader-spinner";
 import { IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
+import { useNavigate } from "react-router-dom";
 
 export interface BuildPopupProps {
   file_key: string;
@@ -23,6 +25,7 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
   const [logs, setLogs] = useState<string[]>([]);
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) {
@@ -145,6 +148,13 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
             </div>
           </DialogDescription>
         </DialogHeader>
+        {status === "success" && (
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => navigate(`/submission/${file_key}`)}>
+              Go to submission
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -3,6 +3,7 @@ import './App.css';
 import { Home } from './components/Home'
 import { SubmissionForm } from './components/Form';
 import { Ranking } from './components/Ranking';
+import { Submission } from './components/Submission';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/submit" element={<SubmissionForm />} />
         <Route path="/ranking" element={<Ranking />} />
+        <Route path="/submission/:uuid" element={<Submission />} />
       </Routes>
     </Router>
   );

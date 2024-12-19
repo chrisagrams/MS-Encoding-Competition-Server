@@ -16,17 +16,19 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+
+import { useNavigate } from "react-router-dom";
+import { Result } from './columns'
    
-interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
+interface DataTableProps {
+  columns: ColumnDef<Result, any>[]; 
+  data: Result[];
 }
 
-export function RankingTable<TData, TValue>({
-    columns,
-    data,
-  }: DataTableProps<TData, TValue>) {
+export function RankingTable({ columns, data }: DataTableProps) {
     const [sorting, setSorting] = React.useState<SortingState>([])
+    const navigate = useNavigate();
+    
     const table = useReactTable({
       data,
       columns,
@@ -64,6 +66,8 @@ export function RankingTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/submission/${row.original.submission_id}`)}
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
