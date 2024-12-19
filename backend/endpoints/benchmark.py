@@ -78,6 +78,6 @@ async def build_container(file_key: str):
 @router.post("/benchmark")
 async def run_benchmark(background_tasks: BackgroundTasks, image: str, db: Session = Depends(get_db)):
     background_tasks.add_task(
-        benchmark_image, client=minio_client, image=image, db_session=db
+        benchmark_image, image=image, db_session=db
     )
     return {"message": "Benchmark started."}

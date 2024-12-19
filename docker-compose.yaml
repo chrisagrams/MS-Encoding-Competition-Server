@@ -4,7 +4,7 @@ services:
 
   frontend:
     image: "chrisagrams/ms-encoding-competition-server-frontend"
-    container_name: mecs-frontend
+    container_name: frontend
     build:
       context: ./frontend
       platforms:
@@ -17,7 +17,7 @@ services:
   
   backend:
     image: "chrisagrams/ms-encoding-competition-server-backend"
-    container_name: mecs-backend
+    container_name: backend
     build:
       context: ./backend
       platforms:
@@ -33,10 +33,35 @@ services:
           restart: true
       minio:
         condition: service_started
+      redis:
+        condition: service_started
+
+  worker:
+    image: "chrisagrams/ms-encoding-competition-server-backend"
+    container_name: worker
+    build:
+      context: ./backend
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+      - ./backend/.env:/app/.env
+    depends_on:
+      postgres:
+          condition: service_healthy
+          restart: true
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
+    command: ["celery", "-A", "tasks", "worker", "--loglevel=INFO"]
+
   
   postgres:
     image: postgres:15
-    container_name: mecs-postgres
+    container_name: postgres
     restart: always
     ports:
       - "5432:5432"
@@ -55,7 +80,7 @@ services:
 
   minio:
     image: quay.io/minio/minio:latest
-    container_name: mecs-minio
+    container_name: minio
     ports:
       - "9000:9000"
       - "9090:9090"
@@ -65,8 +90,27 @@ services:
     command: server /data --console-address ":9090"
     volumes:
       - minio_data:/data
+  
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  flower:
+    image: "mher/flower"
+    container_name: flower
+    command: ["celery", "--broker=redis://redis", "flower"]
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
 
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
     

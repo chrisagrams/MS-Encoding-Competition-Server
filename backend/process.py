@@ -16,25 +16,24 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from models.schema import TestResult
 from utils.docker import check_and_pull_image
+from utils.minio import minio_client, RUN_BUCKET
 
 docker_client = docker.APIClient()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RUN_BUCKET = "run-bucket"
 
-
-def download_file(client: Minio, url: str, bucket: str, prefix: str, object_name: str):
+def download_file(url: str, bucket: str, prefix: str, object_name: str):
     try:
         # Ensure the bucket exists
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
+        if not minio_client.bucket_exists(bucket):
+            minio_client.make_bucket(bucket)
             logger.info(f"{bucket} created.")
 
         # Check if the file already exists
         try:
-            client.stat_object(bucket, f"{prefix}/{object_name}")
+            minio_client.stat_object(bucket, f"{prefix}/{object_name}")
             logger.info(
                 f"{object_name} already exists in the bucket. Skipping download."
             )
@@ -49,7 +48,7 @@ def download_file(client: Minio, url: str, bucket: str, prefix: str, object_name
             with NamedTemporaryFile(delete=True, dir="/tmp") as tmp_file:
                 tmp_file.write(response.content)
                 tmp_file.seek(0)
-                client.put_object(
+                minio_client.put_object(
                     bucket_name=bucket,
                     object_name=f"{prefix}/{object_name}",
                     data=tmp_file,
@@ -64,12 +63,12 @@ def download_file(client: Minio, url: str, bucket: str, prefix: str, object_name
         logger.error(f"HTTP request error: {e}")
 
 
-def put_directory_to_minio(client: Minio, bucket: str, prefix: str, output_dir: str):
+def put_directory_to_minio(bucket: str, prefix: str, output_dir: str):
     for file_name in os.listdir(output_dir):
         output_file_path = os.path.join(output_dir, file_name)
         with open(output_file_path, "rb") as output_file:
             file_stat = os.stat(output_file_path)
-            client.put_object(
+            minio_client.put_object(
                 bucket,
                 f"{prefix}/{file_name}",
                 data=output_file,
@@ -78,9 +77,9 @@ def put_directory_to_minio(client: Minio, bucket: str, prefix: str, output_dir: 
             logger.info(f"Created {prefix}/{file_name}.")
 
 
-def deconstruct_file(client: Minio, bucket: str, prefix: str, object_name: str):
+def deconstruct_file(bucket: str, prefix: str, object_name: str):
     # Check if deconstruct folder exists and if .xml and .npy files are present
-    objects = list(client.list_objects(bucket, prefix=f"{prefix}/deconstruct/"))
+    objects = list(minio_client.list_objects(bucket, prefix=f"{prefix}/deconstruct/"))
     xml_exists = any(obj.object_name.endswith(".xml") for obj in objects)
     npy_exists = any(obj.object_name.endswith(".npy") for obj in objects)
     if xml_exists and npy_exists:
@@ -88,7 +87,7 @@ def deconstruct_file(client: Minio, bucket: str, prefix: str, object_name: str):
         return
 
     # Get mzML from bucket
-    response = client.get_object(bucket, f"{prefix}/{object_name}")
+    response = minio_client.get_object(bucket, f"{prefix}/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
@@ -119,12 +118,12 @@ def deconstruct_file(client: Minio, bucket: str, prefix: str, object_name: str):
         docker_client.remove_container(container=container_id)
 
         # Upload results to MinIO
-        put_directory_to_minio(client, bucket, f"{prefix}/deconstruct", output_dir)
+        put_directory_to_minio(minio_client, bucket, f"{prefix}/deconstruct", output_dir)
 
 
-def search_file(client: Minio, bucket: str, prefix: str, object_name: str):
+def search_file(bucket: str, prefix: str, object_name: str):
     # Check if search folder exists and if search files are present
-    objects = list(client.list_objects(bucket, prefix=f"{prefix}/search/"))
+    objects = list(minio_client.list_objects(bucket, prefix=f"{prefix}/search/"))
     pepxml_exists = any(obj.object_name.endswith(".pepXML") for obj in objects)
     pin_exists = any(obj.object_name.endswith(".pin") for obj in objects)
     tsv_exists = any(obj.object_name.endswith(".tsv") for obj in objects)
@@ -133,7 +132,7 @@ def search_file(client: Minio, bucket: str, prefix: str, object_name: str):
         return
 
     # Get mzML from bucket
-    response = client.get_object(bucket, f"{prefix}/{object_name}")
+    response = minio_client.get_object(bucket, f"{prefix}/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
@@ -173,13 +172,7 @@ def search_file(client: Minio, bucket: str, prefix: str, object_name: str):
                 os.remove(zip_path)
 
         # Upload results to MinIO
-        put_directory_to_minio(client, bucket, f"{prefix}/search", output_dir)
-
-
-def prepare_benchmarks(client: Minio, url: str, object_name: str):
-    download_file(client, url, RUN_BUCKET, "init", object_name)
-    deconstruct_file(client, RUN_BUCKET, "init", object_name)
-    search_file(client, RUN_BUCKET, "init", object_name)
+        put_directory_to_minio(minio_client, bucket, f"{prefix}/search", output_dir)
 
 
 def update_database_entry(db_session, submission_id, field, value):
@@ -250,10 +243,10 @@ def compute_ratio(original_file: Path, compressed_file: Path) -> float:
 
 
 def encode_benchmark(
-    client: Minio, image: str, src_bucket: str, object_name: str, db_session: Session
+    image: str, src_bucket: str, object_name: str, db_session: Session
 ):
     # Get npy from bucket
-    response = client.get_object(src_bucket, f"init/deconstruct/{object_name}")
+    response = minio_client.get_object(src_bucket, f"init/deconstruct/{object_name}")
     file_data = response.read()
 
     # Create two temporary directories, input and output
@@ -315,7 +308,7 @@ def encode_benchmark(
         new_npy = os.path.join(output_dir, "new.npy")
         with open(new_npy, "rb") as output_file:
             file_stat = os.stat(new_npy)
-            client.put_object(
+            minio_client.put_object(
                 RUN_BUCKET,
                 f"{image}/new.npy",
                 data=output_file,
@@ -323,13 +316,13 @@ def encode_benchmark(
             )
 
 
-def reconstruct_submission(client: Minio, image: str):
+def reconstruct_submission(image: str):
     # Get npy from bucket
-    response = client.get_object(RUN_BUCKET, f"{image}/new.npy")
+    response = minio_client.get_object(RUN_BUCKET, f"{image}/new.npy")
     npy_data = response.read()
 
     # Get XML from bucket
-    response = client.get_object(RUN_BUCKET, f"init/deconstruct/test.xml")
+    response = minio_client.get_object(RUN_BUCKET, f"init/deconstruct/test.xml")
     xml_data = response.read()
 
     # Create two temporary directories, input and output
@@ -366,7 +359,7 @@ def reconstruct_submission(client: Minio, image: str):
         new_mzml_path = os.path.join(output_dir, "new.mzML")
         with open(new_mzml_path, "rb") as output_file:
             file_stat = os.stat(new_mzml_path)
-            client.put_object(
+            minio_client.put_object(
                 RUN_BUCKET,
                 f"{image}/new.mzML",
                 data=output_file,
@@ -374,7 +367,7 @@ def reconstruct_submission(client: Minio, image: str):
             )
 
         # Delete new.npy from MinIO
-        client.remove_object(RUN_BUCKET, f"{image}/new.npy")
+        minio_client.remove_object(RUN_BUCKET, f"{image}/new.npy")
 
 
 def extract_percent_preserved(output_dir):
@@ -390,13 +383,13 @@ def extract_percent_preserved(output_dir):
     return None
 
 
-def compare_results(client: Minio, image: str, db_session: Session):
+def compare_results(image: str, db_session: Session):
     # Get original pin file
-    response = client.get_object(RUN_BUCKET, f"init/search/test.pin")
+    response = minio_client.get_object(RUN_BUCKET, f"init/search/test.pin")
     original_pin_data = response.read()
 
     # Get search pin file
-    response = client.get_object(RUN_BUCKET, f"{image}/search/new.pin")
+    response = minio_client.get_object(RUN_BUCKET, f"{image}/search/new.pin")
     new_pin_data = response.read()
 
     with TemporaryDirectory(dir="/tmp") as input_dir, TemporaryDirectory(
@@ -434,16 +427,16 @@ def compare_results(client: Minio, image: str, db_session: Session):
         update_database_entry(db_session, image, "accuracy", percent_preserved)
 
 
-def benchmark_image(client: Minio, image: str, db_session: Session):
+def benchmark_image(image: str, db_session: Session):
     try:
-        if not client.bucket_exists(RUN_BUCKET):
-            client.make_bucket(RUN_BUCKET)
+        if not minio_client.bucket_exists(RUN_BUCKET):
+            minio_client.make_bucket(RUN_BUCKET)
             logger.info(f"Created bucket: {RUN_BUCKET}")
     except S3Error as e:
         logger.error(f"MinIO error: {e}")
     update_database_entry(db_session, image, "status", "pending")
-    encode_benchmark(client, image, RUN_BUCKET, "test.npy", db_session)
-    reconstruct_submission(client, image)
-    search_file(client, RUN_BUCKET, image, "new.mzML")
-    compare_results(client, image, db_session)
+    encode_benchmark(image, RUN_BUCKET, "test.npy", db_session)
+    reconstruct_submission(image)
+    search_file(RUN_BUCKET, image, "new.mzML")
+    compare_results(image, db_session)
     update_database_entry(db_session, image, "status", "success")

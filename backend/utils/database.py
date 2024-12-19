@@ -1,4 +1,4 @@
-from models.schema import SessionLocal
+from models.schema import SessionLocal, Base, engine
 
 def get_db():
     db = SessionLocal()
@@ -6,3 +6,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
