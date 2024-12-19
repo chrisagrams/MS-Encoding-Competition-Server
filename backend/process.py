@@ -118,7 +118,7 @@ def deconstruct_file(bucket: str, prefix: str, object_name: str):
         docker_client.remove_container(container=container_id)
 
         # Upload results to MinIO
-        put_directory_to_minio(minio_client, bucket, f"{prefix}/deconstruct", output_dir)
+        put_directory_to_minio(bucket, f"{prefix}/deconstruct", output_dir)
 
 
 def search_file(bucket: str, prefix: str, object_name: str):
@@ -172,7 +172,7 @@ def search_file(bucket: str, prefix: str, object_name: str):
                 os.remove(zip_path)
 
         # Upload results to MinIO
-        put_directory_to_minio(minio_client, bucket, f"{prefix}/search", output_dir)
+        put_directory_to_minio(bucket, f"{prefix}/search", output_dir)
 
 
 def update_database_entry(db_session, submission_id, field, value):
@@ -425,18 +425,3 @@ def compare_results(image: str, db_session: Session):
         percent_preserved = extract_percent_preserved(output_dir)
 
         update_database_entry(db_session, image, "accuracy", percent_preserved)
-
-
-def benchmark_image(image: str, db_session: Session):
-    try:
-        if not minio_client.bucket_exists(RUN_BUCKET):
-            minio_client.make_bucket(RUN_BUCKET)
-            logger.info(f"Created bucket: {RUN_BUCKET}")
-    except S3Error as e:
-        logger.error(f"MinIO error: {e}")
-    update_database_entry(db_session, image, "status", "pending")
-    encode_benchmark(image, RUN_BUCKET, "test.npy", db_session)
-    reconstruct_submission(image)
-    search_file(RUN_BUCKET, image, "new.mzML")
-    compare_results(image, db_session)
-    update_database_entry(db_session, image, "status", "success")

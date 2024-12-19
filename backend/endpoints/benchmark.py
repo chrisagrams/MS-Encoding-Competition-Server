@@ -1,10 +1,8 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from io import BytesIO
-from sqlalchemy.orm import Session
 from utils.minio import minio_client, BUCKET_NAME
-from utils.database import get_db
-from process import benchmark_image
+from tasks import benchmark_image
 from zipfile import ZipFile
 import tarfile
 import asyncio
@@ -76,8 +74,7 @@ async def build_container(file_key: str):
 
 
 @router.post("/benchmark")
-async def run_benchmark(background_tasks: BackgroundTasks, image: str, db: Session = Depends(get_db)):
-    background_tasks.add_task(
-        benchmark_image, image=image, db_session=db
-    )
-    return {"message": "Benchmark started."}
+async def run_benchmark(image: str):
+    task = benchmark_image.apply_async(args=[image])
+
+    return {"task_id": task.id}
