@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import hljs from "highlight.js";
+import he from "he";
 import "highlight.js/styles/github.css";
 import {
   Card,
@@ -25,6 +26,38 @@ import { ChevronsUpDown } from "lucide-react"
 import { Result } from "./columns"
 import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5"
 
+
+const parseHighlightedCode = (highlightedCode: string) =>
+  highlightedCode.split(/(<span.*?>.*?<\/span>)/g).map((token, index) => {
+    if (token.startsWith("<span")) {
+      const div = document.createElement("div");
+      div.innerHTML = token;
+      const span = div.firstChild as HTMLElement;
+      if (span) {
+        return (
+          <span key={index} className={span.className}>
+            {span.innerText}
+          </span>
+        );
+      }
+    }
+    return token;
+  });
+
+const highlightCode = (code: string) => {
+  const decodedCode = he.decode(code);
+  const highlighted = hljs.highlight(decodedCode, { language: "python" }).value;
+  const fullyDecoded = he.decode(highlighted);
+  return parseHighlightedCode(fullyDecoded);
+};
+
+export const CodeBlock: React.FC<{ code?: string }> = ({ code }) => (
+  <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 overflow-auto">
+    <pre>
+      <code>{code ? highlightCode(code) : "Loading..."}</code>
+    </pre>
+  </div>
+);
 
 export const Submission = () => {
   const { uuid } = useParams();
@@ -69,10 +102,6 @@ export const Submission = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  const highlightCode = (code: string) => {
-    return { __html: hljs.highlight(code, { language: "python" }).value };
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -96,15 +125,9 @@ export const Submission = () => {
                   </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 overflow-auto">
-                      <pre>
-                        <code
-                          dangerouslySetInnerHTML={
-                            files.encode ? highlightCode(files.encode) : undefined
-                          }
-                        ></code>
-                      </pre>
-                    </div>
+                    {files.encode && (
+                        <CodeBlock code={files.encode} />
+                    )}
                   </CollapsibleContent>
                 </Collapsible>
                 <Collapsible>
@@ -117,15 +140,9 @@ export const Submission = () => {
                   </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 overflow-auto">
-                      <pre>
-                        <code
-                          dangerouslySetInnerHTML={
-                            files.decode ? highlightCode(files.decode) : undefined
-                          }
-                        ></code>
-                      </pre>
-                    </div>
+                    {files.decode && (
+                        <CodeBlock code={files.decode} />
+                    )}
                   </CollapsibleContent>
                 </Collapsible>
               </ResizablePanel>
