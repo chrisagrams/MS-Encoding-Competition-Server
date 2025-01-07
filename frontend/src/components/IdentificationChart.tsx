@@ -24,7 +24,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type IdentificationChartProps = {
-  data: Result;
+  data: Result | undefined;
 };
 
 export const IdentificationChart: React.FC<IdentificationChartProps> = ({ data }) => {
