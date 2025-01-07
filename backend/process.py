@@ -370,17 +370,17 @@ def reconstruct_submission(image: str):
         minio_client.remove_object(RUN_BUCKET, f"{image}/new.npy")
 
 
-def extract_percent_preserved(output_dir):
+def extract_result_metrics(output_dir):
     results_path = os.path.join(output_dir, "results.csv")
+    metrics = {}
 
     with open(results_path, mode="r") as csv_file:
         csv_reader = csv.DictReader(csv_file)
 
         for row in csv_reader:
-            if row["Metric"] == "Percent Preserved":
-                return float(row["Value"])
+            metrics[row["Metric"]] = float(row["Value"])
 
-    return None
+    return metrics
 
 
 def compare_results(image: str, db_session: Session):
@@ -422,6 +422,9 @@ def compare_results(image: str, db_session: Session):
         docker_client.wait(container=container_id)
         docker_client.remove_container(container=container_id)
 
-        percent_preserved = extract_percent_preserved(output_dir)
+        result_metrics = extract_result_metrics(output_dir)
 
-        update_database_entry(db_session, image, "accuracy", percent_preserved)
+        update_database_entry(db_session, image, "accuracy", result_metrics['Percent Preserved'])
+        update_database_entry(db_session, image, 'peptide_percent_preserved', result_metrics['Percent Preserved'])
+        update_database_entry(db_session, image, 'peptide_percent_missed', result_metrics['Percent Missed'])
+        update_database_entry(db_session, image, 'peptide_percent_new', result_metrics['Percent New'])

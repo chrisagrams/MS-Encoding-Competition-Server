@@ -21,6 +21,9 @@ export type Result = {
     ratio: number
     accuracy: number
     status: "pending" | "success" | "failed"
+    peptide_percent_preserved: number
+    peptide_percent_missed: number
+    peptide_percent_new: number
 }
 
 const computeMinMax = (rows: Row<Result>[], columnId: string) => {

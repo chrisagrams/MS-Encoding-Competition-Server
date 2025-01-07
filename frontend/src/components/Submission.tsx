@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronsUpDown } from "lucide-react"
 import { Result } from "./columns"
 import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5"
+import { IdentificationChart } from "./IdentificationChart";
 
 
 const parseHighlightedCode = (highlightedCode: string) =>
@@ -164,7 +165,7 @@ export const Submission = () => {
                   </div>
                 </div>
                 <div>
-                  
+                    <IdentificationChart data={resultData}/>
                 </div>
               </ResizablePanel>
             </ResizablePanelGroup>

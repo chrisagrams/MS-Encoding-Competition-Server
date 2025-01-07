@@ -50,6 +50,9 @@ def get_result(id: str, db: Session = Depends(get_db)):
         ratio=result.ratio,
         accuracy=result.accuracy,
         status=result.status,
+        peptide_percent_preserved=result.peptide_percent_preserved,
+        peptide_percent_missed=result.peptide_percent_missed,
+        peptide_percent_new=result.peptide_percent_new,
     )
 
 

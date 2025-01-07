@@ -28,5 +28,8 @@ class TestResult(Base):
     ratio = Column(Float)
     accuracy = Column(Float)
     status = Column(String, nullable=False)
+    peptide_percent_preserved = Column(Float)
+    peptide_percent_missed = Column(Float)
+    peptide_percent_new = Column(Float)
 
     submission = relationship("Submission", back_populates="test_results")

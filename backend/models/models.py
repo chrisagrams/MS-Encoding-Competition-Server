@@ -31,6 +31,9 @@ class ResultModel(BaseModel):
     decoding_runtime: Optional[float] = None
     ratio: Optional[float] = None
     accuracy: Optional[float] = None
+    peptide_percent_preserved: Optional[float] = None
+    peptide_percent_missed: Optional[float] = None
+    peptide_percent_new: Optional[float] = None
     status: str
 
     class Config:
