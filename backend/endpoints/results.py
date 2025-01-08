@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 from models.models import ResultModel
 from models.schema import Submission, TestResult
@@ -54,6 +55,52 @@ def get_result(id: str, db: Session = Depends(get_db)):
         peptide_percent_missed=result.peptide_percent_missed,
         peptide_percent_new=result.peptide_percent_new,
     )
+
+@router.get("/rank", response_model=dict) # TODO: Make a proper response model
+def get_rank(id: str, db: Session = Depends(get_db)):
+    result = db.query(TestResult).filter(TestResult.submission_id == id).first()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+    
+    encoding_runtime_rank = (
+        db.query(func.count())
+        .filter(TestResult.decoding_runtime < result.decoding_runtime)
+        .scalar()
+        + 1
+    )
+
+    decoding_runtime_rank = (
+        db.query(func.count())
+        .filter(TestResult.decoding_runtime < result.decoding_runtime)
+        .scalar()
+        + 1
+    )
+
+    ratio_rank = (
+        db.query(func.count())
+        .filter(TestResult.ratio > result.ratio)
+        .scalar()
+        + 1
+    )
+
+    accuracy_rank = (
+        db.query(func.count())
+        .filter(TestResult.accuracy > result.accuracy)
+        .scalar()
+        + 1
+    )
+
+    total_entries = db.query(func.count(TestResult.id)).scalar()
+
+    return {
+        "submission_id": id,
+        "encoding_runtime_rank": encoding_runtime_rank,
+        "decoding_runtime_rank": decoding_runtime_rank,
+        "ratio_rank": ratio_rank,
+        "accuracy_rank": accuracy_rank,
+        "total_entries": total_entries, 
+    }
 
 
 @router.get("/submission-source")

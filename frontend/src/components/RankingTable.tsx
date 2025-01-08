@@ -21,7 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { Result } from './columns'
    
 interface DataTableProps {
-  columns: ColumnDef<Result, any>[]; 
+  columns: ColumnDef<Result, unknown>[]; 
   data: Result[];
 }
 

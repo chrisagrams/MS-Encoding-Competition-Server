@@ -43,8 +43,13 @@ export const Submission = () => {
         }
         const data = await response.json();
         setFiles({ encode: data["encode.py"], decode: data["decode.py"] });
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch files.");
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        }
+        else {
+          setError("Failed to fetch files. Unexpected error.")
+        }
       }
     };
     fetchFiles();
@@ -63,7 +68,6 @@ export const Submission = () => {
             setResultData(resultData);
         } catch (err) {
             console.error('Error fetching data:', err);
-        } finally {
         }
     };
     fetchData();
@@ -75,7 +79,7 @@ export const Submission = () => {
     <Card>
       <CardHeader>
         <CardTitle>Submission</CardTitle>
-        <CardDescription>{uuid}</CardDescription>
+        <CardDescription>{uuid} &bull; {resultData?.submission_name} &bull; {resultData?.name}</CardDescription>
       </CardHeader>
       <CardContent>
         {error && <p style={{ color: "red" }}>{error}</p>}
@@ -132,6 +136,9 @@ export const Submission = () => {
                     )}
                   </div>
                 </div>
+                <hr className="m-4"></hr>
+                
+
                 <hr className="m-4"></hr>
                 <div>
                     <h3 className="text-l text-center">Peptide Identifications</h3>
