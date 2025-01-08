@@ -1,8 +1,5 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import hljs from "highlight.js";
-import he from "he";
-import "highlight.js/styles/github.css";
+import { useParams } from "react-router-dom"
+import { useEffect, useState } from "react"
 import {
   Card,
   CardContent,
@@ -10,7 +7,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,46 +22,17 @@ import { Button } from "@/components/ui/button"
 import { ChevronsUpDown } from "lucide-react"
 import { Result } from "./columns"
 import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5"
-import { IdentificationChart } from "./IdentificationChart";
+import { CodeBlock } from "./CodeBlock"
+import { IdentificationChart } from "./IdentificationChart"
 
-
-const parseHighlightedCode = (highlightedCode: string) =>
-  highlightedCode.split(/(<span.*?>.*?<\/span>)/g).map((token, index) => {
-    if (token.startsWith("<span")) {
-      const div = document.createElement("div");
-      div.innerHTML = token;
-      const span = div.firstChild as HTMLElement;
-      if (span) {
-        return (
-          <span key={index} className={span.className}>
-            {span.innerText}
-          </span>
-        );
-      }
-    }
-    return token;
-  });
-
-const highlightCode = (code: string) => {
-  const decodedCode = he.decode(code);
-  const highlighted = hljs.highlight(decodedCode, { language: "python" }).value;
-  const fullyDecoded = he.decode(highlighted);
-  return parseHighlightedCode(fullyDecoded);
-};
-
-export const CodeBlock: React.FC<{ code?: string }> = ({ code }) => (
-  <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 overflow-auto">
-    <pre>
-      <code>{code ? highlightCode(code) : "Loading..."}</code>
-    </pre>
-  </div>
-);
 
 export const Submission = () => {
   const { uuid } = useParams();
-  const [files, setFiles] = useState<{ encode?: string; decode?: string }>({});
+  const [files, setFiles] = useState<{ encode?: string; decode?: string }>({})
   const [resultData, setResultData] = useState<Result>()
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
+  const [isEncodeOpen, setIsEncodeOpen] = useState<boolean>(true)
+  const [isDecodeOpen, setIsDecodeOpen] = useState<boolean>(true)
 
   useEffect(() => {
     const fetchFiles = async () => {
@@ -116,7 +84,7 @@ export const Submission = () => {
             <ResizablePanelGroup direction="horizontal">
               <ResizablePanel className="px-3">
                 <h3 className="text-xl font-bold">Code</h3>
-                <Collapsible>
+                <Collapsible open={isEncodeOpen} onOpenChange={setIsEncodeOpen}>
                   <CollapsibleTrigger asChild>
                   <div className="flex row">
                     <h3 className="my-auto cursor-pointer font-mono">encode.py</h3>
@@ -131,7 +99,7 @@ export const Submission = () => {
                     )}
                   </CollapsibleContent>
                 </Collapsible>
-                <Collapsible>
+                <Collapsible open={isDecodeOpen} onOpenChange={setIsDecodeOpen}>
                 <CollapsibleTrigger asChild>
                   <div className="flex row">
                     <h3 className="my-auto cursor-pointer font-mono">decode.py</h3>
@@ -164,7 +132,9 @@ export const Submission = () => {
                     )}
                   </div>
                 </div>
+                <hr className="m-4"></hr>
                 <div>
+                    <h3 className="text-l text-center">Peptide Identifications</h3>
                     <IdentificationChart data={resultData}/>
                 </div>
               </ResizablePanel>
