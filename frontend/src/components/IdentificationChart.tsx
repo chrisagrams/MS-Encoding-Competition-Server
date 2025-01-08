@@ -4,7 +4,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { Result } from "./columns";
+import { Result } from "@/types";
 import colors from "tailwindcss/colors";
 
 

@@ -1,4 +1,5 @@
-import { Result, columns } from "./columns"
+import { columns } from "./columns"
+import { Result } from "@/types";
 import { RankingTable } from "./RankingTable"
 import { useState, useEffect } from "react"
 import {

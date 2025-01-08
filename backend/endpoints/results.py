@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
-from models.models import ResultModel
+from models.models import ResultModel, RankModel
 from models.schema import Submission, TestResult
 from utils.database import get_db
 from utils.minio import minio_client
@@ -56,7 +56,7 @@ def get_result(id: str, db: Session = Depends(get_db)):
         peptide_percent_new=result.peptide_percent_new,
     )
 
-@router.get("/rank", response_model=dict) # TODO: Make a proper response model
+@router.get("/rank", response_model=RankModel)
 def get_rank(id: str, db: Session = Depends(get_db)):
     result = db.query(TestResult).filter(TestResult.submission_id == id).first()
 
@@ -93,14 +93,14 @@ def get_rank(id: str, db: Session = Depends(get_db)):
 
     total_entries = db.query(func.count(TestResult.id)).scalar()
 
-    return {
-        "submission_id": id,
-        "encoding_runtime_rank": encoding_runtime_rank,
-        "decoding_runtime_rank": decoding_runtime_rank,
-        "ratio_rank": ratio_rank,
-        "accuracy_rank": accuracy_rank,
-        "total_entries": total_entries, 
-    }
+    return RankModel(
+        submission_id=id,
+        encoding_runtime_rank=encoding_runtime_rank,
+        decoding_runtime_rank=decoding_runtime_rank,
+        ratio_rank=ratio_rank,
+        accuracy_rank=accuracy_rank,
+        total_entries=total_entries, 
+    )
 
 
 @router.get("/submission-source")

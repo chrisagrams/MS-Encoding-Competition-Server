@@ -20,16 +20,30 @@ import {
 } from "@/components/ui/resizable"
 import { Button } from "@/components/ui/button"
 import { ChevronsUpDown } from "lucide-react"
-import { Result } from "./columns"
+import { Result, Rank } from "@/types";
 import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5"
 import { CodeBlock } from "./CodeBlock"
 import { IdentificationChart } from "./IdentificationChart"
+import ordinal from 'ordinal'
+
+
+const getRankWithEmoji = (rank?: number): string => {
+  if (rank === undefined) return 'N/A'
+
+  const emoji =
+      rank === 1 ? '🥇' :
+      rank === 2 ? '🥈' :
+      rank === 3 ? '🥉' : '';
+
+  return `${ordinal(rank)} ${emoji}`.trim()
+};
 
 
 export const Submission = () => {
   const { uuid } = useParams();
   const [files, setFiles] = useState<{ encode?: string; decode?: string }>({})
   const [resultData, setResultData] = useState<Result>()
+  const [rankData, setRankData] = useState<Rank>()
   const [error, setError] = useState<string | null>(null)
   const [isEncodeOpen, setIsEncodeOpen] = useState<boolean>(true)
   const [isDecodeOpen, setIsDecodeOpen] = useState<boolean>(true)
@@ -74,6 +88,24 @@ export const Submission = () => {
     const intervalId = setInterval(fetchData, 1000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    const fetchRank = async () => {
+      try {
+        const response = await fetch(`/api/rank?id=${uuid}`)
+
+        if (!response.ok) {
+          throw new Error('Failed to get results.')
+        }
+
+        const rankData: Rank = await response.json()
+        setRankData(rankData)
+      } catch (err) {
+        console.error('Error fetching data:', err)
+      }
+    }
+    fetchRank()
+  }, [uuid])
 
   return (
     <Card>
@@ -137,8 +169,12 @@ export const Submission = () => {
                   </div>
                 </div>
                 <hr className="m-4"></hr>
-                
-
+                <div>
+                  <p>Encoding rank: {getRankWithEmoji(rankData?.encoding_runtime_rank)}</p>
+                  <p>Decoding rank: {getRankWithEmoji(rankData?.decoding_runtime_rank)}</p>
+                  <p>Ratio rank: {getRankWithEmoji(rankData?.ratio_rank)}</p>
+                  <p>Accuracy rank: {getRankWithEmoji(rankData?.accuracy_rank)}</p>
+                </div>
                 <hr className="m-4"></hr>
                 <div>
                     <h3 className="text-l text-center">Peptide Identifications</h3>

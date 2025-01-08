@@ -38,3 +38,12 @@ class ResultModel(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class RankModel(BaseModel):
+    submission_id: str
+    encoding_runtime_rank: int
+    decoding_runtime_rank: int
+    ratio_rank: int
+    accuracy_rank: int
+    total_entries: int

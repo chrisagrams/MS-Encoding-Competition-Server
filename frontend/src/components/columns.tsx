@@ -11,20 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5"
+import { Result } from "@/types"
 
-export type Result = {
-    submission_id: string
-    name: string
-    submission_name: string
-    encoding_runtime: number
-    decoding_runtime: number
-    ratio: number
-    accuracy: number
-    status: "pending" | "success" | "failed"
-    peptide_percent_preserved: number
-    peptide_percent_missed: number
-    peptide_percent_new: number
-}
 
 const computeMinMax = (rows: Row<Result>[], columnId: string) => {
     const values = rows.map((row) => parseFloat(row.getValue(columnId)))
