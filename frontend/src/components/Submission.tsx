@@ -25,6 +25,7 @@ import { IoCheckmarkCircle, IoCloseCircle, IoTime } from "react-icons/io5";
 import { CodeBlock } from "./CodeBlock";
 import { IdentificationChart } from "./IdentificationChart";
 import ordinal from "ordinal";
+import Confetti from 'react-confetti'
 
 const getRankWithEmoji = (rank?: number): string => {
   if (rank === undefined) return "N/A";
@@ -166,18 +167,36 @@ export const Submission = () => {
                 </div>
                 <hr className="m-4"></hr>
                 <div>
-                  <p>
-                    Encoding rank:{" "}
-                    {getRankWithEmoji(rankData?.encoding_runtime_rank)}
-                  </p>
-                  <p>
-                    Decoding rank:{" "}
-                    {getRankWithEmoji(rankData?.decoding_runtime_rank)}
-                  </p>
-                  <p>Ratio rank: {getRankWithEmoji(rankData?.ratio_rank)}</p>
-                  <p>
-                    Accuracy rank: {getRankWithEmoji(rankData?.accuracy_rank)}
-                  </p>
+                  <h3 className="text-l text-center">
+                    Ranking
+                  </h3>
+                  <div className="flex flex-row justify-center gap-6 p-6">
+                    <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                      <p className="font-bold">{getRankWithEmoji(rankData?.encoding_runtime_rank)}</p>
+                      <p>{resultData?.encoding_runtime?.toFixed(2)}s</p>
+                      <p className="mt-auto font-light">Encoding Runtime</p>
+                      {rankData?.encoding_runtime_rank === 1 && <Confetti recycle={false}/>}
+                    </div>
+                    <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                      <p className="font-bold">{getRankWithEmoji(rankData?.decoding_runtime_rank)}</p>
+                      <p>{resultData?.decoding_runtime?.toFixed(2)}s</p>
+                      <p className="mt-auto font-light">Decoding Runtime</p>
+                      {rankData?.decoding_runtime_rank === 1 && <Confetti recycle={false}/>}
+
+                    </div>
+                    <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                      <p className="font-bold">{getRankWithEmoji(rankData?.ratio_rank)}</p>
+                      <p>{((resultData?.ratio ?? 0) * 100).toFixed(2)}%</p>
+                      <p className="mt-auto font-light">Deflate Ratio</p>
+                      {rankData?.ratio_rank === 1 && <Confetti recycle={false}/>}
+                    </div>
+                    <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                      <p className="font-bold">{getRankWithEmoji(rankData?.accuracy_rank)}</p>
+                      <p>{resultData?.accuracy?.toFixed(2)}%</p>
+                      <p className="mt-auto font-light">Search Accuracy</p>
+                      {rankData?.accuracy_rank === 1 && <Confetti recycle={false}/>}
+                    </div>
+                  </div>
                 </div>
                 <hr className="m-4"></hr>
                 <div>
