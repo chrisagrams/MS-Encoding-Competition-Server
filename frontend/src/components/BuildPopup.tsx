@@ -23,7 +23,9 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
   setOpen,
 }) => {
   const [logs, setLogs] = useState<string[]>([]);
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading"
+  );
   const logsEndRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
@@ -71,7 +73,7 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
           if (response.ok) {
             setStatus("success");
           } else {
-            setStatus("error"); 
+            setStatus("error");
           }
         } catch (error) {
           console.error("Error fetching logs:", error);
@@ -99,9 +101,11 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
           <DialogDescription>
             <div className="flex flex-row justify-between">
               <p className="my-auto">
-                {status === "loading" && "Please wait as your container is being built."}
+                {status === "loading" &&
+                  "Please wait as your container is being built."}
                 {status === "success" && "Container built successfully!"}
-                {status === "error" && "An error occurred when building container."}
+                {status === "error" &&
+                  "An error occurred when building container."}
               </p>
               {status === "loading" && (
                 <ColorRing
@@ -111,7 +115,13 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
                   ariaLabel="color-ring-loading"
                   wrapperStyle={{}}
                   wrapperClass="color-ring-wrapper"
-                  colors={["#4A90E2", "#4A90E2", "#4A90E2", "#4A90E2", "#4A90E2"]}
+                  colors={[
+                    "#4A90E2",
+                    "#4A90E2",
+                    "#4A90E2",
+                    "#4A90E2",
+                    "#4A90E2",
+                  ]}
                 />
               )}
               {status === "success" && (

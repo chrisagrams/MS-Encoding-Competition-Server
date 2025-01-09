@@ -1,10 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import './App.css';
-import { Home } from './components/Home';
-import { SubmissionForm } from './components/Form';
-import { Ranking } from './components/Ranking';
-import { Submission } from './components/Submission';
-import { Layout } from './components/Layout';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import "./App.css";
+import { Home } from "./components/Home";
+import { SubmissionForm } from "./components/Form";
+import { Ranking } from "./components/Ranking";
+import { Submission } from "./components/Submission";
+import { Layout } from "./components/Layout";
 
 function App() {
   return (

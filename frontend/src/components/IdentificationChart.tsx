@@ -7,7 +7,6 @@ import {
 import { Result } from "@/types";
 import colors from "tailwindcss/colors";
 
-
 const chartConfig = {
   preserved: {
     label: "Preserved",
@@ -27,25 +26,33 @@ type IdentificationChartProps = {
   data: Result | undefined;
 };
 
-export const IdentificationChart: React.FC<IdentificationChartProps> = ({ data }) => {
+export const IdentificationChart: React.FC<IdentificationChartProps> = ({
+  data,
+}) => {
   const pieData = [
     {
       name: "Preserved",
       value: data?.peptide_percent_preserved,
       fill: chartConfig.preserved.color,
-      label: `${chartConfig.preserved.label} (${data?.peptide_percent_preserved?.toFixed(2)}%)`,
+      label: `${
+        chartConfig.preserved.label
+      } (${data?.peptide_percent_preserved?.toFixed(2)}%)`,
     },
     {
       name: "Missed",
       value: data?.peptide_percent_missed,
       fill: chartConfig.missed.color,
-      label: `${chartConfig.missed.label} (${data?.peptide_percent_missed?.toFixed(2)}%)`,
+      label: `${
+        chartConfig.missed.label
+      } (${data?.peptide_percent_missed?.toFixed(2)}%)`,
     },
     {
       name: "New",
       value: data?.peptide_percent_new,
       fill: chartConfig.new.color,
-      label: `${chartConfig.new.label} (${data?.peptide_percent_new?.toFixed(2)}%)`,
+      label: `${chartConfig.new.label} (${data?.peptide_percent_new?.toFixed(
+        2
+      )}%)`,
     },
   ];
 
@@ -56,10 +63,9 @@ export const IdentificationChart: React.FC<IdentificationChartProps> = ({ data }
           data={pieData}
           dataKey="value"
           nameKey="name"
-          label={({ name, value }) =>
-            `${name} (${value?.toFixed(2)}%)`
-          }
-          paddingAngle={2.5} minAngle={2.5}
+          label={({ name, value }) => `${name} (${value?.toFixed(2)}%)`}
+          paddingAngle={2.5}
+          minAngle={2.5}
         />
         <Tooltip content={<ChartTooltipContent />} />
       </PieChart>
