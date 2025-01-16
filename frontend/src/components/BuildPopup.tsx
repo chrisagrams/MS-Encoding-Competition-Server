@@ -72,6 +72,7 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
 
           if (response.ok) {
             setStatus("success");
+            submitBenchTask(file_key);
           } else {
             setStatus("error");
           }
@@ -92,6 +93,22 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
       logsEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [logs]);
+
+  const submitBenchTask = async (image: string) => {
+    try {
+      const response = await fetch(`/api/benchmark?image=${image}`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Task ID:", data.task_id);
+    } catch (error) {
+      console.error("Error calling benchmark:", error);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
