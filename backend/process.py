@@ -77,6 +77,16 @@ def put_directory_to_minio(bucket: str, prefix: str, output_dir: str):
             logger.info(f"Created {prefix}/{file_name}.")
 
 
+def delete_from_minio(bucket: str, prefix: str, object_name: str):
+    try:
+        minio_client.stat_object(bucket, f"{prefix}/{object_name}")
+        minio_client.remove_object(bucket, f"{prefix}/{object_name}")
+        return True
+    except S3Error as e:
+        logger.error(f"MinIO error: {e}")
+        return False
+
+
 def deconstruct_file(bucket: str, prefix: str, object_name: str):
     # Check if deconstruct folder exists and if .xml and .npy files are present
     objects = list(minio_client.list_objects(bucket, prefix=f"{prefix}/deconstruct/"))

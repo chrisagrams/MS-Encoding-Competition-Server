@@ -34,6 +34,7 @@ def post_encode_benchmark(image: str):
     db_session = next(get_db())
     reconstruct_submission(image)
     search_file(RUN_BUCKET, image, "new.mzML")
+    delete_from_minio(RUN_BUCKET, image, "new.mzML")
     compare_results(image, db_session)
     update_database_entry(db_session, image, "status", "success")
     return image

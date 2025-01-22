@@ -40,7 +40,7 @@ const formSchema = z.object({
     .refine((file) => file.size <= 25 * 1024 * 1024, {
       message: "File size must be less than 25MB",
     })
-    .refine((file) => file.type === "application/zip", {
+    .refine((file) => file.type === "application/zip" || file.type === "application/x-zip-compressed", { /* Windows uses x-zip-compressed MIME type */
       message: "File must be a ZIP file",
     }),
 });
