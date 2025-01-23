@@ -15,7 +15,11 @@ from minio.error import S3Error
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from models.schema import TestResult
-from utils.docker import check_and_pull_image
+from utils.docker import (
+    check_and_pull_image,
+    check_and_pull_internal_image,
+    delete_docker_image,
+)
 from utils.minio import minio_client, RUN_BUCKET
 
 docker_client = docker.APIClient()
@@ -268,6 +272,7 @@ def encode_benchmark(
             input_file.write(file_data)
 
         # Evaluate encode
+        check_and_pull_internal_image(image_name=f"transform-{image}")
         encoding_runtime = eval_container(
             image=f"transform-{image}",
             command="python -u main.py /input/test.npy /output/transformed.npy --mode=encode",
@@ -292,6 +297,7 @@ def encode_benchmark(
             )
 
         # Decoding runtime
+        check_and_pull_internal_image(image_name=f"transform-{image}")
         decoding_runtime = eval_container(
             image=f"transform-{image}",
             command="python -u main.py /input/transformed.npy /output/new.npy --mode=decode",
@@ -324,6 +330,9 @@ def encode_benchmark(
                 data=output_file,
                 length=file_stat.st_size,
             )
+
+        # Delete image from local registry
+        delete_docker_image(image_name=f"transform-{image}")
 
 
 def reconstruct_submission(image: str):
