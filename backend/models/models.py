@@ -42,8 +42,8 @@ class ResultModel(BaseModel):
 
 class RankModel(BaseModel):
     submission_id: str
-    encoding_runtime_rank: int
-    decoding_runtime_rank: int
-    ratio_rank: int
-    accuracy_rank: int
+    encoding_runtime_rank: Optional[int]
+    decoding_runtime_rank: Optional[int]
+    ratio_rank: Optional[int]
+    accuracy_rank: Optional[int]
     total_entries: int

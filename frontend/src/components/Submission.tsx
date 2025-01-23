@@ -27,8 +27,8 @@ import { IdentificationChart } from "./IdentificationChart";
 import ordinal from "ordinal";
 import Confetti from 'react-confetti'
 
-const getRankWithEmoji = (rank?: number): string => {
-  if (rank === undefined) return "N/A";
+const getRankWithEmoji = (rank?: number | null): string => {
+  if (rank === undefined || rank === null) return "N/A";
 
   const emoji = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
 

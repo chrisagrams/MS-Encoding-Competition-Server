@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from io import BytesIO
 from utils.minio import minio_client, BUCKET_NAME, CONTAINER_BUCKET
-from minio.error import S3Error
+from utils.docker import save_and_push_internal_image
 from tasks import benchmark_image
 from zipfile import ZipFile
 import logging
@@ -37,29 +37,6 @@ def create_transform_tar(zip_data: BytesIO) -> BytesIO:
                     tar.addfile(tar_info, BytesIO(file_bytes))
         tar_data.seek(0)
         return tar_data
-
-
-def save_image_to_minio(image_name: str):
-    try:
-        image_stream = docker_client.get_image(image_name)
-        image_bytes = BytesIO()
-        for chunk in image_stream:
-            image_bytes.write(chunk)
-        image_bytes.seek(0)
-
-        minio_client.put_object(
-            bucket_name=CONTAINER_BUCKET,
-            object_name=f"{image_name}.tar",
-            data=image_bytes,
-            length=len(image_bytes.getvalue()),
-            content_type="application/x-tar"
-        )
-    except S3Error as e:
-        logger.error(f"MinIO error while saving Docker image: {e}")
-    except docker.errors.DockerException as e:
-        logger.error(f"Docker error while saving Docker image: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error while saving Docker image: {e}")
 
 
 @router.post("/build-container/{file_key}")
@@ -99,7 +76,7 @@ async def build_container(file_key: str):
                     raise HTTPException(status_code=500, detail=error_message)
 
             success_message = f"Docker image built successfully for {file_key}."
-            save_image_to_minio(image_name=f"transform-{file_key}:latest")
+            save_and_push_internal_image(image_name=f"transform-{file_key}")
             yield f"{success_message}\n"
             await asyncio.sleep(0)
 
