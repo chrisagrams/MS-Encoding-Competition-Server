@@ -99,7 +99,7 @@ async def build_container(file_key: str):
                     raise HTTPException(status_code=500, detail=error_message)
 
             success_message = f"Docker image built successfully for {file_key}."
-            save_image_to_minio(image_name=f"transform-{file_key}:latest")
+            save_image_to_minio(image_name=f"transform-{file_key}")
             yield f"{success_message}\n"
             await asyncio.sleep(0)
 
