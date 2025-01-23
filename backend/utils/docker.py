@@ -2,6 +2,7 @@ import docker
 import logging
 from io import BytesIO
 from utils.minio import minio_client, CONTAINER_BUCKET
+from minio.error import S3Error
 
 docker_client = docker.APIClient()
 logger = logging.getLogger(__name__)
@@ -12,6 +13,29 @@ def check_and_pull_image(image_name: str):
         docker_client.inspect_image(image_name)
     except docker.errors.ImageNotFound:
         docker_client.pull(image_name)
+
+
+def save_and_push_internal_image(image_name: str):
+    try:
+        image_stream = docker_client.get_image(image_name)
+        image_bytes = BytesIO()
+        for chunk in image_stream:
+            image_bytes.write(chunk)
+        image_bytes.seek(0)
+
+        minio_client.put_object(
+            bucket_name=CONTAINER_BUCKET,
+            object_name=f"{image_name}.tar",
+            data=image_bytes,
+            length=len(image_bytes.getvalue()),
+            content_type="application/x-tar"
+        )
+    except S3Error as e:
+        logger.error(f"MinIO error while saving Docker image: {e}")
+    except docker.errors.DockerException as e:
+        logger.error(f"Docker error while saving Docker image: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error while saving Docker image: {e}")
 
 
 def check_and_pull_internal_image(image_name: str):
