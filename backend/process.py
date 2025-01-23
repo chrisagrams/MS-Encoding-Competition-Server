@@ -434,7 +434,21 @@ def compare_results(image: str, db_session: Session):
 
         result_metrics = extract_result_metrics(output_dir)
 
-        update_database_entry(db_session, image, "accuracy", result_metrics['Percent Preserved'])
-        update_database_entry(db_session, image, 'peptide_percent_preserved', result_metrics['Percent Preserved'])
-        update_database_entry(db_session, image, 'peptide_percent_missed', result_metrics['Percent Missed'])
-        update_database_entry(db_session, image, 'peptide_percent_new', result_metrics['Percent New'])
+        update_database_entry(
+            db_session, image, "accuracy", result_metrics["Percent Preserved"]
+        )
+        update_database_entry(
+            db_session,
+            image,
+            "peptide_percent_preserved",
+            result_metrics["Percent Preserved"],
+        )
+        update_database_entry(
+            db_session,
+            image,
+            "peptide_percent_missed",
+            result_metrics["Percent Missed"],
+        )
+        update_database_entry(
+            db_session, image, "peptide_percent_new", result_metrics["Percent New"]
+        )

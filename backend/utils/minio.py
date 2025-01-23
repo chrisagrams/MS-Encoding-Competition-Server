@@ -3,6 +3,7 @@ from minio.error import S3Error
 
 BUCKET_NAME = "submission-uploads"
 RUN_BUCKET = "run-bucket"
+CONTAINER_BUCKET = "container-bucket"
 
 minio_client = Minio(
     "minio:9000",
@@ -19,4 +20,4 @@ def initialize_buckets(buckets: list[str]):
     except S3Error as e:
         print(f"Error initializing buckets: {e}")
 
-initialize_buckets([BUCKET_NAME, RUN_BUCKET])
+initialize_buckets([BUCKET_NAME, RUN_BUCKET, CONTAINER_BUCKET])

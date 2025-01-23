@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up the application...")
@@ -39,6 +40,3 @@ app = FastAPI(lifespan=lifespan, root_path="/api/")
 app.include_router(upload.router)
 app.include_router(results.router)
 app.include_router(benchmark.router)
-
-
-
