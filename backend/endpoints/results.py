@@ -65,30 +65,42 @@ def get_rank(id: str, db: Session = Depends(get_db)):
     
     encoding_runtime_rank = (
         db.query(func.count())
-        .filter(TestResult.decoding_runtime < result.decoding_runtime)
+        .filter(TestResult.encoding_runtime.isnot(None))
+        .filter(TestResult.encoding_runtime < result.encoding_runtime)
         .scalar()
         + 1
+        if result.encoding_runtime is not None
+        else None
     )
 
     decoding_runtime_rank = (
         db.query(func.count())
+        .filter(TestResult.decoding_runtime.isnot(None))
         .filter(TestResult.decoding_runtime < result.decoding_runtime)
         .scalar()
         + 1
+        if result.decoding_runtime is not None
+        else None
     )
 
     ratio_rank = (
         db.query(func.count())
+        .filter(TestResult.ratio.isnot(None))
         .filter(TestResult.ratio > result.ratio)
         .scalar()
         + 1
+        if result.ratio is not None
+        else None
     )
 
     accuracy_rank = (
         db.query(func.count())
+        .filter(TestResult.accuracy.isnot(None))
         .filter(TestResult.accuracy > result.accuracy)
         .scalar()
         + 1
+        if result.accuracy is not None
+        else None
     )
 
     total_entries = db.query(func.count(TestResult.id)).scalar()
@@ -99,7 +111,7 @@ def get_rank(id: str, db: Session = Depends(get_db)):
         decoding_runtime_rank=decoding_runtime_rank,
         ratio_rank=ratio_rank,
         accuracy_rank=accuracy_rank,
-        total_entries=total_entries, 
+        total_entries=total_entries,
     )
 
 

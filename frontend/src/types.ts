@@ -24,9 +24,9 @@ export type Result = {
 
 export type Rank = {
     submission_id: string
-    encoding_runtime_rank: number
-    decoding_runtime_rank: number
-    ratio_rank: number
-    accuracy_rank: number
+    encoding_runtime_rank: number | null
+    decoding_runtime_rank: number | null
+    ratio_rank: number | null
+    accuracy_rank: number | null
     total_entries: number
 }
