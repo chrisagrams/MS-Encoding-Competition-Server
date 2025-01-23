@@ -1,3 +1,13 @@
+export type APIErrorDetail = {
+    loc?: string[] // (optional) location of error
+    msg: string
+    type: string
+}
+
+export type APIError = {
+    detail: string | APIErrorDetail[]
+}
+
 export type Result = {
     submission_id: string
     name: string
