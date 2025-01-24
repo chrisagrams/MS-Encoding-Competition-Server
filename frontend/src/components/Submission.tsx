@@ -173,26 +173,25 @@ export const Submission = () => {
                   <div className="flex flex-row justify-center gap-6 p-6">
                     <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                       <p className="font-bold">{getRankWithEmoji(rankData?.encoding_runtime_rank)}</p>
-                      <p>{resultData?.encoding_runtime?.toFixed(2)}s</p>
-                      <p className="mt-auto font-light">Encoding Runtime</p>
+                      <p>{resultData?.encoding_runtime != null ? `${resultData.encoding_runtime.toFixed(2)}s` : "N/A"}</p>                      <p className="mt-auto font-light">Encoding Runtime</p>
                       {rankData?.encoding_runtime_rank === 1 && <Confetti recycle={false}/>}
                     </div>
                     <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                       <p className="font-bold">{getRankWithEmoji(rankData?.decoding_runtime_rank)}</p>
-                      <p>{resultData?.decoding_runtime?.toFixed(2)}s</p>
+                      <p>{resultData?.decoding_runtime != null ? `${resultData.decoding_runtime.toFixed(2)}s` : "N/A"}</p>
                       <p className="mt-auto font-light">Decoding Runtime</p>
                       {rankData?.decoding_runtime_rank === 1 && <Confetti recycle={false}/>}
 
                     </div>
                     <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                       <p className="font-bold">{getRankWithEmoji(rankData?.ratio_rank)}</p>
-                      <p>{((resultData?.ratio ?? 0) * 100).toFixed(2)}%</p>
+                      <p>{resultData?.ratio != null ? `${(resultData.ratio * 100).toFixed(2)}%` : "N/A"}</p>
                       <p className="mt-auto font-light">Deflate Ratio</p>
                       {rankData?.ratio_rank === 1 && <Confetti recycle={false}/>}
                     </div>
                     <div className="flex flex-col text-center rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                       <p className="font-bold">{getRankWithEmoji(rankData?.accuracy_rank)}</p>
-                      <p>{resultData?.accuracy?.toFixed(2)}%</p>
+                      <p>{resultData?.accuracy != null ? `${resultData.accuracy.toFixed(2)}%` : "N/A"}</p>
                       <p className="mt-auto font-light">Search Accuracy</p>
                       {rankData?.accuracy_rank === 1 && <Confetti recycle={false}/>}
                     </div>
