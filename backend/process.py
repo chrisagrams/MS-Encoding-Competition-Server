@@ -439,6 +439,10 @@ def compare_results(image: str, db_session: Session):
 
         docker_client.start(container=container_id)
         docker_client.wait(container=container_id)
+
+        logs = docker_client.logs(container=container_id)
+        logger.info(f"pats-compare: {logs.decode("utf-8")}") 
+        
         docker_client.remove_container(container=container_id)
 
         result_metrics = extract_result_metrics(output_dir)

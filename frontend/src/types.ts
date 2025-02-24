@@ -12,14 +12,14 @@ export type Result = {
     submission_id: string
     name: string
     submission_name: string
-    encoding_runtime: number
-    decoding_runtime: number
-    ratio: number
-    accuracy: number
+    encoding_runtime: number | null
+    decoding_runtime: number | null
+    ratio: number | null
+    accuracy: number | null
     status: "pending" | "success" | "failed"
-    peptide_percent_preserved: number
-    peptide_percent_missed: number
-    peptide_percent_new: number
+    peptide_percent_preserved: number | null
+    peptide_percent_missed: number | null
+    peptide_percent_new: number | null
 }
 
 export type Rank = {
