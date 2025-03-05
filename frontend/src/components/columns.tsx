@@ -162,7 +162,7 @@ export const columns: ColumnDef<Result>[] = [
         return <Skeleton className="h-9 rounded" />;
       }
       const numericValue = parseFloat(value);
-      const backgroundColor = getTailwindColor(numericValue, max, min);
+      const backgroundColor = getTailwindColor(numericValue, min, max);
       return (
         <div
           className={`${backgroundColor} p-2 rounded text-right font-medium`}
