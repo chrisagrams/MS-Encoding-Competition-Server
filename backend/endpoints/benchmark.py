@@ -29,10 +29,13 @@ def create_transform_tar(zip_data: BytesIO) -> BytesIO:
         with tarfile.open(fileobj=tar_data, mode="w") as tar:
             for file_info in z.infolist():
                 if file_info.filename.startswith("transform/"):
+                    relative_path = file_info.filename[len("transform/"):]
+                    # Skip the __pycache__ folder and its contents
+                    if relative_path.split("/")[0] == "__pycache__":
+                        continue
+
                     file_bytes = z.read(file_info)
-                    tar_info = tarfile.TarInfo(
-                        name=file_info.filename[len("transform/") :]
-                    )
+                    tar_info = tarfile.TarInfo(name=relative_path)
                     tar_info.size = len(file_bytes)
                     tar.addfile(tar_info, BytesIO(file_bytes))
         tar_data.seek(0)
@@ -80,10 +83,11 @@ async def build_container(file_key: str):
             yield f"{success_message}\n"
             await asyncio.sleep(0)
 
-        except docker.errors.BuildError as e:
+        except docker.errors.APIError as e:
             error_message = f"Docker build failed: {str(e)}"
+            logger.error(error_message)
             yield f"ERROR: {error_message}\n"
-            raise HTTPException(status_code=500, detail=error_message)
+            await asyncio.sleep(0)
 
     return StreamingResponse(log_stream(), media_type="text/plain")
 
