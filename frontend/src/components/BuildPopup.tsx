@@ -157,6 +157,7 @@ export const BuildPopup: React.FC<BuildPopupProps> = ({
                 maxHeight: "300px",
                 overflowY: "auto",
                 fontFamily: "monospace",
+                wordBreak: "break-word",
               }}
             >
               {logs.length > 0 ? (
